@@ -181,7 +181,6 @@ export class Stage {
       accentSoft: std({ color: 0xbcd6ee, roughness: .6 }),
       glass: std({ color: 0xd6e6f2, roughness: .05, transparent: true, opacity: .28, depthWrite: false, side: THREE.DoubleSide }),
       led: std({ color: 0xdfe8f5, emissive: 0x3d8fe0, emissiveIntensity: 0, roughness: .3 }),
-      sensor: std({ color: BLUE, roughness: .5 }),
       chip: std({ color: 0x222831, roughness: .4 }),
       ring: new THREE.MeshBasicMaterial({ color: BLUE, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }),
     };
@@ -285,11 +284,36 @@ export class Stage {
     }
     this.#piece(led, 1.2);
 
+    // sensor de color: placa negra con cuatro LED transparentes en las esquinas, chip al centro y pines a los lados
     const sensor = new THREE.Group(); sensor.position.set(COLOR.x, 15.15, COLOR.z); sensor.rotation.y = COLOR.rot; this.root.add(sensor);
-    const plate = this.#box(-1.0, 1.0, -0.08, 0.08, -0.95, 0.95, sensor); plate.material = this.M.sensor;
-    const chip = this.#box(-0.25, 0.25, 0.08, 0.2, -0.25, 0.25, sensor); chip.material = this.M.chip;
-    const sl = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.12, 0.3), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff3d6, emissiveIntensity: 1.2 }));
-    sl.position.set(0.6, 0.14, 0.5); sensor.add(sl);
+    const sm = {
+      pcb: new THREE.MeshStandardMaterial({ color: 0x15171b, roughness: .55 }),
+      silk: new THREE.MeshStandardMaterial({ color: 0xf2f2f2, roughness: .6 }),
+      chip: new THREE.MeshStandardMaterial({ color: 0xc9a24a, roughness: .25, metalness: .2 }),
+      pin: new THREE.MeshStandardMaterial({ color: 0xd8d2c4, roughness: .3, metalness: .8 }),
+      smd: new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: .5 }),
+      cap: new THREE.MeshStandardMaterial({ color: 0x9a6a3a, roughness: .5 }),
+      led: new THREE.MeshStandardMaterial({ color: 0xf4f7fb, emissive: 0xfff6e0, emissiveIntensity: .35, roughness: .08, transparent: true, opacity: .78 }),
+    };
+    const add = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; sensor.add(m); return m; };
+    add(new THREE.BoxGeometry(2.0, 0.16, 1.9), sm.pcb, 0, 0, 0);
+    add(new THREE.BoxGeometry(0.42, 0.1, 0.36), sm.chip, 0, 0.13, 0);
+    [-1, 1].forEach(sx => [-1, 1].forEach(sz => {
+      const x = sx * 0.6, z = sz * 0.56;
+      add(new THREE.CylinderGeometry(0.29, 0.29, 0.07, 24), sm.led, x, 0.12, z);
+      add(new THREE.CylinderGeometry(0.25, 0.25, 0.42, 24), sm.led, x, 0.36, z);
+      add(new THREE.SphereGeometry(0.25, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), sm.led, x, 0.57, z);
+    }));
+    // pines: cuatro a cada lado con su marco serigrafiado
+    [-1, 1].forEach(sx => {
+      const x = sx * 0.86;
+      [[0.04, 1.02, x - 0.11], [0.04, 1.02, x + 0.11]].forEach(([w, d, xx]) => add(new THREE.BoxGeometry(w, 0.01, d), sm.silk, xx, 0.085, 0));
+      for (let i = 0; i < 4; i++) add(new THREE.BoxGeometry(0.12, 0.02, 0.12), sm.pin, x, 0.09, -0.36 + i * 0.24);
+    });
+    // resistencias y capacitores
+    [[-0.38, -0.2], [-0.38, 0.05], [-0.38, 0.3], [0.38, -0.2], [0.38, 0.05], [0.38, 0.3]].forEach(([x, z]) => add(new THREE.BoxGeometry(0.16, 0.05, 0.09), sm.smd, x, 0.105, z));
+    add(new THREE.BoxGeometry(0.16, 0.08, 0.1), sm.cap, 0, 0.12, -0.5);
+    add(new THREE.BoxGeometry(0.12, 0.06, 0.08), sm.cap, 0, 0.11, -0.34);
     this.#piece(sensor, 0.5);
 
     // FSR: pastilla redonda en la cara interior del muro del fondo; la cola sube a la ranurita
