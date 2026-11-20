@@ -24,11 +24,19 @@ Abre http://localhost:5173.
 ## Ajustes pendientes (`src/content.js`)
 
 - `lookerUrl`: link público del dashboard de Looker Studio. Mientras esté vacío, el botón "Ver dashboard" no aparece.
-- `siteUrl`: URL pública del sitio. Si está vacía, el QR usa la URL con la que se abrió la página (en Railway sale sola; en `localhost` muestra un recuadro pendiente).
+- `siteUrl`: URL pública del sitio para el QR (ya apunta a Railway). Si se deja vacía, el QR usa la URL con la que se abrió la página.
 
 ## Despliegue en Railway
 
-El repo ya trae `railway.json`: Railway construye con `npm run build` y sirve `dist/` con `npm start` (`serve`, escucha en `$PORT`).
+Sitio: https://safewait-landing-production.up.railway.app (proyecto `safewait-landing` en Railway).
+
+Railway detecta Node, construye con `npm run build` y sirve `dist/` con `npm start` (`serve`, escucha en `$PORT`). Para publicar cambios desde esta carpeta:
+
+```bash
+railway up --detach
+```
+
+Para probar el build de producción en local:
 
 ```bash
 npm run build

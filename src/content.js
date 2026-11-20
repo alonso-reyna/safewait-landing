@@ -1,7 +1,7 @@
 // Textos y datos de la landing. Para activar el botón del dashboard, pon aquí el link público.
 export const CONFIG = {
   // URL pública del sitio (Railway). Si se deja vacía, el QR usa la URL con la que se abrió la página.
-  siteUrl: '',
+  siteUrl: 'https://safewait-landing-production.up.railway.app/',
   // Link público del dashboard de Looker Studio. Vacío = el botón "Ver dashboard" queda oculto.
   lookerUrl: '',
   // Segundos sin interacción antes de que el modo stand (?stand) vuelva al inicio.
