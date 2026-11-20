@@ -28,7 +28,7 @@ Abre http://localhost:5173.
 
 ## Despliegue en Railway
 
-Sitio: https://safewait-landing-production.up.railway.app (proyecto `safewait-landing` en Railway).
+Sitio: https://safewait.coretium.ai (proyecto `safewait-landing` en Railway; también responde en https://safewait-landing-production.up.railway.app). El dominio es un CNAME en Cloudflare con el proxy apagado (DNS only).
 
 Railway detecta Node, construye con `npm run build` y sirve `dist/` con `npm start` (`serve`, escucha en `$PORT`).
 
