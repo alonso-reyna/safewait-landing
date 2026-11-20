@@ -30,7 +30,9 @@ Abre http://localhost:5173.
 
 Sitio: https://safewait-landing-production.up.railway.app (proyecto `safewait-landing` en Railway).
 
-Railway detecta Node, construye con `npm run build` y sirve `dist/` con `npm start` (`serve`, escucha en `$PORT`). Para publicar cambios desde esta carpeta:
+Railway detecta Node, construye con `npm run build` y sirve `dist/` con `npm start` (`serve`, escucha en `$PORT`).
+
+El servicio está conectado a este repo: cada push a `main` se despliega solo. Para subir la carpeta local sin hacer push (por ejemplo, una prueba rápida):
 
 ```bash
 railway up --detach
