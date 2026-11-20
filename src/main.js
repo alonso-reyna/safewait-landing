@@ -6,7 +6,6 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
-import QRCode from 'qrcode';
 import { CONFIG, NODES, TEAM } from './content.js';
 import { Stage, ANCHORS, COLOR, CAD, defaultState } from './scene.js';
 import { Route } from './route.js';
@@ -58,7 +57,7 @@ if (!reduceMotion) {
 const scrollToY = (y, dur = 1.6) => lenis ? lenis.scrollTo(y, { duration: dur }) : window.scrollTo(0, y);
 
 /* ---------- escena ---------- */
-// sin WebGL (o si el modelo no carga) la página sigue: textos, navegación, QR y modo stand; se ocultan los visores
+// sin WebGL (o si el modelo no carga) la página sigue: textos, navegación y modo stand; se ocultan los visores
 let stage = null;
 try { stage = new Stage($('#gl'), { mobile: isMobile(), reduceMotion }); } catch (err) { console.error(err); }
 function no3D() { document.documentElement.classList.add('no-3d'); $('#loadStatus').hidden = true; ScrollTrigger.refresh(); }
@@ -90,7 +89,9 @@ const HERO_TGT = V(0, 21, -8);
 const HERO_PTS = [];
 [-33.5, 33.5].forEach(x => [-32.71, 17.29].forEach(z => HERO_PTS.push(V(x, 15.07, z))));
 [-22.6, 8.4].forEach(x => [-23.9, -10.9].forEach(z => HERO_PTS.push(V(x, 35.5, z))));
-let heroAngle = 0.62;
+// la maqueta no da la vuelta completa: se mece despacio alrededor de la vista de frente (±8°, ciclo de 50 s)
+const HERO_FRONT = 0.32;
+let heroAngle = HERO_FRONT, heroT = 0;
 const heroCopy = $$('.hero-copy > *');
 function heroOrbit(c, angle, el, d) {
   c.position.set(HERO_TGT.x + Math.sin(angle) * Math.cos(el) * d, HERO_TGT.y + Math.sin(el) * d, HERO_TGT.z + Math.cos(angle) * Math.cos(el) * d);
@@ -106,7 +107,7 @@ function heroBox(c, W, H) {
   return { w: x2 - x1, h: y2 - y1, cx: (x1 + x2) / 2, cy: (y1 + y2) / 2 };
 }
 heroView.onFrame = (v, now, dt) => {
-  if (!reduceMotion && stage.asm.done !== undefined) heroAngle += dt * 0.07;
+  if (!reduceMotion && stage.asm.done !== undefined) { heroT += dt; heroAngle = HERO_FRONT + Math.sin(heroT * Math.PI * 2 / 50) * 0.14; }
   const hero = v.el.parentElement.getBoundingClientRect();
   const p = clamp(-hero.top / hero.height);
   const c = v.camera, W = v.rect.width, H = v.rect.height;
@@ -116,16 +117,17 @@ heroView.onFrame = (v, now, dt) => {
     const rs = heroCopy.map(e => e.getBoundingClientRect()).filter(r => r.width);
     const right = Math.max(...rs.map(r => r.right)) - v.rect.left;
     const top = Math.min(...rs.map(r => r.top)) - v.rect.top, bottom = Math.max(...rs.map(r => r.bottom)) - v.rect.top;
-    const x1 = right + W * 0.04, x2 = W - Math.max(40, W * 0.05);
-    box = { cx: (x1 + x2) / 2, cy: (top + bottom) / 2, w: (x2 - x1) * 0.92, h: H * 0.62 };
-  } else box = { cx: W / 2, cy: H / 2, w: W * 0.92, h: H * 0.8 };
+    // margen con el texto y con el borde derecho
+    const x1 = right + W * 0.03, x2 = W - Math.max(40, W * 0.035);
+    box = { cx: (x1 + x2) / 2, cy: (top + bottom) / 2, w: (x2 - x1), h: H * 0.74 };
+  } else box = { cx: W / 2, cy: H / 2, w: W * 1.02, h: H * 0.95 };
   // se mide en el ángulo de inicio para que el tamaño no cambie mientras gira
   const el = 0.5 + p * 0.25;
   c.clearViewOffset(); c.updateProjectionMatrix();
-  heroOrbit(c, 0.62, el, 260);
+  heroOrbit(c, HERO_FRONT, el, 260);
   let m = heroBox(c, W, H);
   const d = 260 * Math.max(m.w / box.w, m.h / box.h);
-  heroOrbit(c, 0.62, el, d);
+  heroOrbit(c, HERO_FRONT, el, d);
   m = heroBox(c, W, H);
   c.setViewOffset(W, H, m.cx - box.cx, m.cy - box.cy, W, H); c.updateProjectionMatrix();
   heroOrbit(c, heroAngle, el, d);
@@ -403,17 +405,6 @@ ScrollTrigger.create({
 });
 if (reduceMotion) { flow.style.setProperty('--p', 1); $$('.flow-stops li', flow).forEach(li => li.classList.add('on')); }
 
-/* ---------- QR ---------- */
-const local = /^(localhost|127\.|0\.0\.0\.0|\[::1\]|192\.168\.|10\.)/.test(location.hostname);
-const qrUrl = CONFIG.siteUrl || (!local ? location.origin + '/' : '');
-if (qrUrl) {
-  QRCode.toString(qrUrl, { type: 'svg', margin: 0, errorCorrectionLevel: 'M', color: { dark: '#162660', light: '#ffffff' } })
-    .then(svg => { $('#qr').innerHTML = svg; $('#qrUrl').textContent = qrUrl.replace(/^https?:\/\//, '').replace(/\/$/, ''); });
-} else {
-  $('#qr').innerHTML = '<span class="qr-ph">QR</span>';
-  $('#qrUrl').textContent = 'Pendiente: URL de Railway';
-}
-
 /* ---------- modo stand: vuelve al inicio tras inactividad ---------- */
 if (standMode) {
   document.documentElement.classList.add('stand');
@@ -422,7 +413,7 @@ if (standMode) {
   function restart() {
     resetExplore();
     scrollToY(0, 2.4);
-    setTimeout(() => { if (stage) stage.assemble(); heroAngle = 0.62; arm(); }, reduceMotion ? 0 : 2500);
+    setTimeout(() => { if (stage) stage.assemble(); heroAngle = HERO_FRONT; heroT = 0; arm(); }, reduceMotion ? 0 : 2500);
   }
   ['pointerdown', 'pointermove', 'wheel', 'keydown', 'touchstart'].forEach(ev => window.addEventListener(ev, arm, { passive: true }));
   arm();

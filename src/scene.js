@@ -69,13 +69,13 @@ export class Stage {
     this.reduceMotion = reduceMotion;
     this.views = [];
     this.ready = false;
-    this.asm = { start: -1, dur: 2.5 };
+    this.asm = { t: -1, dur: 2.5 };
 
     const r = this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
     r.setPixelRatio(Math.min(window.devicePixelRatio || 1, mobile ? 1.75 : 2));
     r.setClearColor(0xffffff, 0);
     r.shadowMap.enabled = true;
-    r.shadowMap.type = THREE.PCFSoftShadowMap;
+    r.shadowMap.type = THREE.PCFShadowMap; // r187 cambia PCFSoft por PCF en la primera sombra; fijarlo evita recompilar a media animación
     r.toneMapping = THREE.ACESFilmicToneMapping;
     r.toneMappingExposure = 1.0;
     r.autoClear = true;
@@ -452,6 +452,7 @@ export class Stage {
     });
     this.#cleanTop();
     this.root.add(model);
+    await this.#prewarm();
     this.ready = true;
   }
 
@@ -497,23 +498,50 @@ export class Stage {
     this.#piece(plane, 0.3);
   }
 
+  /* Precalentado: antes del armado, con los materiales que de verdad usa cada vista (desvanecidos y asentados),
+     compila los shaders, crea los clones de desvanecido, sube buffers y arma las sombras. Si no, los primeros
+     cuadros del armado se traban. Se dibuja en el lienzo y se borra en la misma tarea: nunca llega a verse. */
+  async #prewarm() {
+    const r = this.renderer, cam = new THREE.PerspectiveCamera(30, 1, 1, 1500);
+    cam.position.set(0, 120, 200); cam.lookAt(0, 20, 0); cam.updateMatrixWorld();
+    const states = [], seen = new Set();
+    for (const f of this.reduceMotion ? [1] : [0.5, 1]) for (const v of this.views) {
+      const key = f + JSON.stringify(v.state);
+      if (!seen.has(key)) { seen.add(key); states.push([f, v.state]); }
+    }
+    const set = ([f, st]) => { for (const p of this.pieces) p.meshes.forEach(m => { m.userData.fade = f; }); this.#apply(st); };
+    for (const st of states) {
+      set(st);
+      try { await r.compileAsync(this.scene, cam); } catch (err) { console.warn(err); }
+    }
+    r.setScissorTest(false);
+    for (const st of states) { set(st); r.render(this.scene, cam); }
+    r.clear();
+  }
+
   /* ---------- armado pieza por pieza ---------- */
   assemble() {
-    this.asm.start = this.reduceMotion ? -1 : performance.now() / 1000;
+    // reloj propio que avanza con dt (tope 1/30 s): un cuadro lento frena la animación en vez de saltarse un tramo
+    this.asm.t = this.reduceMotion ? -1 : 0;
     this.asm.done = this.reduceMotion;
   }
-  #updateAssembly(now) {
-    const t = this.asm.start < 0 ? 99 : now - this.asm.start;
-    const span = 0.6, scale = this.asm.dur / 2.5;
+  #updateAssembly(dt) {
+    if (this.asm.t >= 0 && !this.asm.done) {
+      this.asm.t += Math.min(dt, 1 / 30);
+    }
+    const t = this.asm.t < 0 ? 99 : this.asm.t;
+    const span = 0.9, scale = this.asm.dur / 2.5;
     let all = true;
     for (const p of this.pieces) {
       const k = Math.min(1, Math.max(0, (t - p.t0 * scale) / span));
       if (k < 1) all = false;
-      const e = 1 - Math.pow(1 - k, 3);
-      p.obj.userData.asmOff = (1 - e) * 7 * p.obj.userData.unit;
+      const e = 1 - Math.pow(1 - k, 4);
+      p.obj.userData.asmOff = (1 - e) * 3 * p.obj.userData.unit;
       p.meshes.forEach(m => { m.userData.fade = k; });
     }
     this.asm.done = all;
+    this.asm.end ??= Math.max(...this.pieces.map(p => p.t0)) * scale + span;
+    this.asm.p = Math.min(1, t / this.asm.end); // avance global: llega a 1 cuando termina la última pieza
   }
 
   /* ---------- aplicar el estado de una vista ---------- */
@@ -525,6 +553,8 @@ export class Stage {
     this.fill.intensity = .6 * (1 - .9 * n);
     this.hemi.color.setRGB(1 - .35 * n, 1 - .25 * n, 1);
     M.led.emissiveIntensity = n * 3.2;
+    // pantalla OLED: se prende cuando el camión está en el paradero (antes de copiar emisión a los clones del armado)
+    this.oledMat.emissiveIntensity = 0.06 + 1.6 * s.oled;
     this.ledLights.forEach(l => { l.intensity = n * 90; });
     this.spill.intensity = n * 45;
     this.edgeMat.color.setHex(s.real ? 0x5b3a1c : 0xaab3be);
@@ -543,22 +573,41 @@ export class Stage {
         const cache = m.userData.fadeMats || (m.userData.fadeMats = {});
         let fm = cache[mat.uuid];
         if (!fm) { fm = cache[mat.uuid] = mat.clone(); fm.transparent = true; }
-        fm.opacity = f; fm.depthWrite = f > .9; mat = fm;
+        fm.opacity = f; fm.depthWrite = false; mat = fm; // escribir profundidad casi invisible abre huecos en piezas ya visibles
       }
       m.material = mat;
-      if (m.userData.edges) m.userData.edges.visible = f > .7;
+      const e = m.userData.edges;
+      if (e) {
+        e.visible = f > 0;
+        if (f < 1) { const em = e.userData.fadeMat || (e.userData.fadeMat = this.edgeMat.clone()); em.color.copy(this.edgeMat.color); em.opacity = this.edgeMat.opacity * f; e.material = em; }
+        else e.material = this.edgeMat;
+      }
     }
 
     // posiciones: armado + estado
     for (const p of this.pieces) {
       p.obj.position.y = p.obj.userData.y0 + (p.obj.userData.asmOff || 0);
-      for (const m of p.meshes) m.visible = (m.userData.fade ?? 1) > 0;
+      for (const m of p.meshes) {
+        const f = m.userData.fade ?? 1, u = m.userData;
+        m.visible = f > 0;
+        if (u.cast0 === undefined) u.cast0 = m.castShadow;
+        m.castShadow = u.cast0 && f > .6; // la sombra entra cuando la pieza ya se ve, no antes
+        if (!u.cls) { // vidrio, sensores, LEDs: su material no lo pone el estado
+          const base = u.mat0 || (u.mat0 = m.material);
+          if (f < 1) {
+            const bs = [].concat(base);
+            const fs = u.asmMat || (u.asmMat = bs.map(b => Object.assign(b.clone(), { transparent: true, depthWrite: false })));
+            fs.forEach((x, i) => { x.opacity = bs[i].opacity * f; if (x.emissive) x.emissiveIntensity = bs[i].emissiveIntensity; });
+            m.material = Array.isArray(base) ? fs : fs[0];
+          } else m.material = base;
+        }
+      }
     }
     // hero: sin pedestal; la tapa limpia sustituye a la del CAD y la sombra cae justo debajo de ella
     if (!s.plinth) this.plinth.forEach(m => { m.visible = false; });
     if (this.cleanTopMesh) this.cleanTopMesh.visible = this.cleanTopMesh.visible && !s.plinth;
     this.ground.position.y = s.plinth ? 0 : 15.06;
-    this.ground.material.opacity = s.plinth ? .11 : .14;
+    this.ground.material.opacity = (s.plinth ? .11 : .14) * (this.asm.p ?? 1);
     this.bars.forEach(o => { o.position.y += s.bars * CAD.barLift / 100; });
     const roofLift = s.roof * 0.4;
     this.roof.forEach(o => { o.position.y += roofLift; if (s.roof >= .98) o.visible = false; });
@@ -575,8 +624,6 @@ export class Stage {
       bus.visible = op > 0.01;
     }
 
-    // pantalla OLED: se prende cuando el camión está en el paradero
-    this.oledMat.emissiveIntensity = 0.06 + 1.6 * s.oled;
 
     // ondas SOS
     this.rings.forEach((r, i) => {
@@ -606,7 +653,7 @@ export class Stage {
 
   render(now, dt) {
     if (!this.ready) return;
-    this.#updateAssembly(now);
+    this.#updateAssembly(dt);
     const r = this.renderer;
     r.setScissorTest(false); r.clear();
     for (const v of this.views) {
