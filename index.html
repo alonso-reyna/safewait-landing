@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>SafeWait | Paradero de transporte público seguro</title>
+  <meta name="description" content="SafeWait es un paradero de transporte público que se ilumina, pide ayuda y protege a quien espera solo. Proyecto de Implementación de IoT, grupo 4, Tec de Monterrey.">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="color-scheme" content="light">
+  <link rel="icon" type="image/svg+xml" href="/safewait-logo.svg">
+  <link rel="preload" href="/models/safewait.glb" as="fetch" type="model/gltf-binary" crossorigin>
+</head>
+<body>
+  <a class="skip" href="#problema">Saltar al contenido</a>
+
+  <!-- Lienzo único: dibuja el modelo en cada "vista" (hero, cómo funciona, explóralo) -->
+  <canvas id="gl" aria-hidden="true"></canvas>
+
+  <!-- Línea de ruta que recorre la página -->
+  <svg id="route" aria-hidden="true"><path class="route-base"/><path class="route-draw"/><g class="route-branches"></g><g class="route-stops"></g></svg>
+
+  <header class="top" id="top">
+    <a class="brand" href="#inicio" aria-label="SafeWait, ir al inicio">
+      <img src="/safewait-logo.svg" alt="" width="28" height="28">
+      <span>SafeWait</span>
+    </a>
+    <nav class="nav" aria-label="Secciones">
+      <a href="#problema" data-stop="problema">Problema</a>
+      <a href="#como-funciona" data-stop="como-funciona">Cómo funciona</a>
+      <a href="#exploralo" data-stop="exploralo">Explóralo</a>
+      <a href="#tecnologia" data-stop="tecnologia">Tecnología</a>
+      <a href="#equipo" data-stop="equipo">Equipo</a>
+    </nav>
+    <a class="btn btn-navy" href="#exploralo">Explora el paradero</a>
+  </header>
+
+  <main>
+    <!-- HERO -->
+    <section class="hero" id="inicio" data-section="inicio">
+      <div class="hero-copy">
+        <p class="eyebrow">Implementación de IoT, grupo 4</p>
+        <h1>Esperar ya no es un riesgo.</h1>
+        <p class="lead">SafeWait es un paradero de transporte público que se ilumina, pide ayuda y protege a quien espera solo.</p>
+        <div class="hero-actions">
+          <a class="btn btn-navy" href="#exploralo">Explora el paradero</a>
+          <a class="btn btn-ghost" href="#como-funciona">Cómo funciona</a>
+        </div>
+        <p class="hero-meta">Maqueta a escala 1:15 con cinco nodos NodeMCU.</p>
+      </div>
+      <div class="view hero-view" id="view-hero" aria-label="Modelo 3D de la maqueta SafeWait armándose" role="img"></div>
+      <p class="load-status" id="loadStatus">Cargando modelo…</p>
+    </section>
+
+    <!-- PROBLEMA -->
+    <section class="section problem" id="problema" data-section="problema">
+      <div class="wrap">
+        <p class="eyebrow stop-label">El problema</p>
+        <h2>Esperar el camión de noche, solo y sin luz.</h2>
+        <p class="intro">Muchos paraderos tienen poca iluminación y ninguna forma de pedir ayuda. Quienes más lo resienten son las mujeres, los adultos mayores y los niños que esperan solos.</p>
+        <ul class="stats">
+          <li class="stat reveal">
+            <span class="num" data-count="66.6">66.6 %</span>
+            <p>de las mujeres se siente insegura en el transporte público.</p>
+            <span class="stat-src">2 de cada 3 mujeres</span>
+          </li>
+          <li class="stat reveal">
+            <span class="num" data-count="55.9">55.9 %</span>
+            <p>de la población urbana dice que en su ciudad falta alumbrado público.</p>
+            <span class="stat-src">Más de la mitad</span>
+          </li>
+          <li class="stat reveal">
+            <span class="num" data-count="22.1">22.1 %</span>
+            <p>de las mujeres sufrió acoso o violencia sexual en lugares públicos en el último semestre.</p>
+            <span class="stat-src">1 de cada 5 mujeres</span>
+          </li>
+        </ul>
+        <p class="source">Fuente: INEGI, Encuesta Nacional de Seguridad Pública Urbana (ENSU) 2026.</p>
+      </div>
+    </section>
+
+    <!-- CÓMO FUNCIONA (scroll guiado) -->
+    <section class="how" id="como-funciona" data-section="como-funciona">
+      <div class="how-sticky">
+        <div class="how-panel">
+          <p class="eyebrow stop-label">Cómo funciona</p>
+          <h2 class="how-title">Cinco nodos, una caseta.</h2>
+          <ol class="how-stops" id="howStops"></ol>
+          <div class="how-steps" id="howSteps"></div>
+        </div>
+        <div class="view how-view" id="view-how" aria-hidden="true">
+          <div class="bus-label" id="busLabel" aria-hidden="true"><span class="dot"></span><span><b>Ruta 2</b> azul</span></div>
+        </div>
+      </div>
+      <div class="how-track" id="howTrack" aria-hidden="true"></div>
+    </section>
+
+    <!-- EXPLÓRALO TÚ -->
+    <section class="section explore" id="exploralo" data-section="exploralo">
+      <div class="wrap">
+        <p class="eyebrow stop-label">Explóralo tú</p>
+        <div class="explore-head">
+          <h2>Gira la maqueta y prueba cada nodo.</h2>
+          <label class="switch">
+            <input type="checkbox" id="realToggle">
+            <span class="switch-track" aria-hidden="true"></span>
+            <span>Materiales reales</span>
+          </label>
+        </div>
+      </div>
+      <div class="explore-stage">
+        <aside class="explore-side">
+          <ol class="mini-route" id="nodeStops" aria-label="Nodos"></ol>
+          <div class="node-card" id="nodeCard" aria-live="polite">
+            <p class="node-hint">Toca un nodo para ver qué hace.</p>
+          </div>
+        </aside>
+        <div class="view explore-view" id="view-explore" aria-label="Visor 3D interactivo. Arrastra para girar, rueda o pellizco para acercar." role="application">
+          <div class="hotspots" id="hotspots"></div>
+          <p class="explore-hint">Arrastra para girar. Rueda o pellizca para acercar.</p>
+        </div>
+        <div class="explore-bar" role="toolbar" aria-label="Controles del visor">
+          <button class="chip" data-act="night" aria-pressed="false">Modo noche</button>
+          <button class="chip" data-act="door" aria-pressed="false">Abrir puerta</button>
+          <button class="chip" data-act="bars" aria-pressed="false">Subir barrotes</button>
+          <button class="chip" data-act="xray" aria-pressed="false">Ver mecanismo</button>
+          <button class="chip" data-act="roof" aria-pressed="false">Quitar techo</button>
+          <button class="chip chip-plain" data-act="reset">Vista inicial</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- TECNOLOGÍA -->
+    <section class="section tech" id="tecnologia" data-section="tecnologia">
+      <div class="wrap">
+        <p class="eyebrow stop-label">Tecnología</p>
+        <h2>Del sensor al dashboard.</h2>
+        <p class="intro">Cada NodeMCU lee su sensor, actúa en la maqueta y manda la lectura por WiFi a una API en Flask. La API la guarda en <code>safewait_db</code>, en Aiven, y Looker Studio la muestra en un dashboard.</p>
+        <div class="flow" id="flow">
+          <div class="flow-track" aria-hidden="true"><div class="flow-fill"></div></div>
+          <ol class="flow-stops">
+            <li><span class="fs-dot"></span><b>Sensor</b><span>Luz, fuerza, NFC, color y keypad</span></li>
+            <li><span class="fs-dot"></span><b>NodeMCU</b><span>Uno por nodo, con WiFi</span></li>
+            <li><span class="fs-dot"></span><b>API Flask</b><span>Recibe cada lectura</span></li>
+            <li><span class="fs-dot"></span><b>safewait_db</b><span>Base de datos en Aiven</span></li>
+            <li><span class="fs-dot"></span><b>Looker Studio</b><span>Dashboard del equipo</span></li>
+          </ol>
+        </div>
+        <div class="table-wrap">
+          <table class="nodes-table">
+            <thead><tr><th scope="col">Nodo</th><th scope="col">Sensor</th><th scope="col">Actuador</th><th scope="col">Responsable</th></tr></thead>
+            <tbody id="nodesTable"></tbody>
+          </table>
+        </div>
+        <a class="btn btn-ghost" id="lookerBtn" href="#" target="_blank" rel="noopener" hidden>Ver dashboard</a>
+      </div>
+    </section>
+
+    <!-- EQUIPO -->
+    <section class="section team" id="equipo" data-section="equipo">
+      <div class="wrap">
+        <p class="eyebrow stop-label">Equipo</p>
+        <h2>Quiénes lo hicimos.</h2>
+        <ul class="team-list" id="teamList"></ul>
+        <p class="teachers">Profesoras: Claudia Solís y Xochitl Zapata.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot" data-section="fin">
+    <div class="wrap foot-grid">
+      <div class="foot-brand">
+        <img src="/safewait-logo.svg" alt="" width="36" height="36">
+        <div>
+          <b>SafeWait</b>
+          <span>Implementación de IoT, grupo 4, Tec de Monterrey.</span>
+        </div>
+      </div>
+      <div class="foot-meta">
+        <span>Profesoras: Claudia Solís y Xochitl Zapata.</span>
+        <span>Cifras: INEGI, ENSU 2026.</span>
+        <a href="https://github.com/alonso-reyna/safewait-landing" target="_blank" rel="noopener">Código en GitHub</a>
+      </div>
+    </div>
+  </footer>
+
+  <aside class="qr-card" id="qrCard" aria-label="Abrir esta página en el celular">
+    <div class="qr" id="qr"></div>
+    <div>
+      <b>Llévalo en tu celular</b>
+      <span id="qrUrl">Escanea el código</span>
+    </div>
+  </aside>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
