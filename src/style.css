@@ -123,6 +123,7 @@ section { position: relative; }
 .stat p { margin-top: 16px; font-size: 17px; line-height: 1.45; max-width: 28ch; }
 .stat-src { display: block; margin-top: 12px; font-size: 13px; color: var(--blue); font-weight: 600; }
 .source { margin-top: 40px; font-size: 13px; color: #7a8492; }
+.source a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 @media (max-width: 820px) { .stats { grid-template-columns: 1fr; gap: 28px; margin-top: 40px; } }
 
 /* cómo funciona */
@@ -210,7 +211,7 @@ section { position: relative; }
 .node-card dt { color: #7a8492; }
 .node-card dd { margin: 0; color: var(--navy); font-weight: 500; }
 .acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
-.explore-view { position: relative; z-index: 2; grid-column: 1 / 3; grid-row: 1; touch-action: none; cursor: grab; min-height: 0; }
+.explore-view { position: relative; z-index: 2; grid-column: 1 / 3; grid-row: 1; touch-action: pan-y; cursor: grab; min-height: 0; }
 .explore-view:active { cursor: grabbing; }
 .explore-hint { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); margin: 0; font-size: 12.5px; color: #8a94a2; white-space: nowrap; pointer-events: none; }
 .hotspots { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
@@ -315,3 +316,7 @@ body[data-section="exploralo"] .qr-card, body[data-section="como-funciona"] .qr-
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
+
+/* sin 3D (sin WebGL o sin modelo): quedan los textos; se ocultan visores y controles */
+html.no-3d .hero-view, html.no-3d .how-view, html.no-3d .explore-view, html.no-3d .explore-bar, html.no-3d .explore-head .switch, html.no-3d #gl { display: none; }
+@media (max-width: 820px) { html.no-3d .how-panel { top: 50%; bottom: auto; transform: translateY(-50%); background: none; } }

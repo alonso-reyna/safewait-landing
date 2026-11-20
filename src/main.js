@@ -8,7 +8,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
 import QRCode from 'qrcode';
 import { CONFIG, NODES, TEAM } from './content.js';
-import { Stage, ANCHORS, COLOR, CAD } from './scene.js';
+import { Stage, ANCHORS, COLOR, CAD, defaultState } from './scene.js';
 import { Route } from './route.js';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -20,6 +20,7 @@ const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 const easeOut = t => 1 - Math.pow(1 - t, 3);
 const easeIn = t => t * t * t;
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
+const tmpA = V(0, 0, 0), tmpB = V(0, 0, 0), tmpT = V(0, 0, 0);
 
 const params = new URLSearchParams(location.search);
 // ?quieto fuerza el modo sin animaciones (igual que "reducir movimiento" del sistema)
@@ -57,10 +58,16 @@ if (!reduceMotion) {
 const scrollToY = (y, dur = 1.6) => lenis ? lenis.scrollTo(y, { duration: dur }) : window.scrollTo(0, y);
 
 /* ---------- escena ---------- */
-const stage = new Stage($('#gl'), { mobile: isMobile(), reduceMotion });
-const heroView = stage.addView($('#view-hero'));
-const howView = stage.addView($('#view-how'));
-const exView = stage.addView($('#view-explore'));
+// sin WebGL (o si el modelo no carga) la página sigue: textos, navegación, QR y modo stand; se ocultan los visores
+let stage = null;
+try { stage = new Stage($('#gl'), { mobile: isMobile(), reduceMotion }); } catch (err) { console.error(err); }
+function no3D() { document.documentElement.classList.add('no-3d'); $('#loadStatus').hidden = true; ScrollTrigger.refresh(); }
+if (!stage) no3D();
+// sin escena, las vistas son objetos sueltos para que el resto del código no truene (nunca se dibujan)
+const addView = el => stage ? stage.addView(el) : { el, camera: new THREE.PerspectiveCamera(30, 1, 1, 1500), state: defaultState(), rect: el.getBoundingClientRect() };
+const heroView = addView($('#view-hero'));
+const howView = addView($('#view-how'));
+const exView = addView($('#view-explore'));
 
 // distancia para que una esfera de radio r quepa en la vista
 function fitDist(cam, r) {
@@ -76,19 +83,52 @@ function shiftView(cam, rect, px) {
   cam.updateProjectionMatrix();
 }
 
-/* Hero: gira despacio; al hacer scroll la cámara sube un poco */
-const HERO_TGT = V(0, 14, -4);
+/* Hero: solo la pieza de arriba (sin pedestal), junto al texto; gira despacio y al hacer scroll la cámara sube un poco */
+heroView.state.plinth = false;
+const HERO_TGT = V(0, 21, -8);
+// esquinas de la tapa y del techo: con ellas se mide cuánto ocupa la maqueta en pantalla
+const HERO_PTS = [];
+[-33.5, 33.5].forEach(x => [-32.71, 17.29].forEach(z => HERO_PTS.push(V(x, 15.07, z))));
+[-22.6, 8.4].forEach(x => [-23.9, -10.9].forEach(z => HERO_PTS.push(V(x, 35.5, z))));
 let heroAngle = 0.62;
+const heroCopy = $$('.hero-copy > *');
+function heroOrbit(c, angle, el, d) {
+  c.position.set(HERO_TGT.x + Math.sin(angle) * Math.cos(el) * d, HERO_TGT.y + Math.sin(el) * d, HERO_TGT.z + Math.cos(angle) * Math.cos(el) * d);
+  c.lookAt(HERO_TGT); c.updateMatrixWorld();
+}
+function heroBox(c, W, H) {
+  let x1 = Infinity, x2 = -Infinity, y1 = Infinity, y2 = -Infinity;
+  for (const p of HERO_PTS) {
+    tmpA.copy(p).project(c);
+    const x = (tmpA.x * .5 + .5) * W, y = (-tmpA.y * .5 + .5) * H;
+    x1 = Math.min(x1, x); x2 = Math.max(x2, x); y1 = Math.min(y1, y); y2 = Math.max(y2, y);
+  }
+  return { w: x2 - x1, h: y2 - y1, cx: (x1 + x2) / 2, cy: (y1 + y2) / 2 };
+}
 heroView.onFrame = (v, now, dt) => {
   if (!reduceMotion && stage.asm.done !== undefined) heroAngle += dt * 0.07;
   const hero = v.el.parentElement.getBoundingClientRect();
   const p = clamp(-hero.top / hero.height);
-  const d = fitDist(v.camera, v.camera.aspect < 1 ? 50 : 60) * (1 - p * .12);
+  const c = v.camera, W = v.rect.width, H = v.rect.height;
+  // espacio para la maqueta: a la derecha del texto en escritorio; el bloque del visor en móvil
+  let box;
+  if (!isMobile()) {
+    const rs = heroCopy.map(e => e.getBoundingClientRect()).filter(r => r.width);
+    const right = Math.max(...rs.map(r => r.right)) - v.rect.left;
+    const top = Math.min(...rs.map(r => r.top)) - v.rect.top, bottom = Math.max(...rs.map(r => r.bottom)) - v.rect.top;
+    const x1 = right + W * 0.04, x2 = W - Math.max(40, W * 0.05);
+    box = { cx: (x1 + x2) / 2, cy: (top + bottom) / 2, w: (x2 - x1) * 0.92, h: H * 0.62 };
+  } else box = { cx: W / 2, cy: H / 2, w: W * 0.92, h: H * 0.8 };
+  // se mide en el ángulo de inicio para que el tamaño no cambie mientras gira
   const el = 0.5 + p * 0.25;
-  const c = v.camera;
-  shiftView(c, v.rect, v.rect.width * 0.17);
-  c.position.set(HERO_TGT.x + Math.sin(heroAngle) * Math.cos(el) * d, HERO_TGT.y + Math.sin(el) * d, HERO_TGT.z + Math.cos(heroAngle) * Math.cos(el) * d);
-  c.lookAt(HERO_TGT);
+  c.clearViewOffset(); c.updateProjectionMatrix();
+  heroOrbit(c, 0.62, el, 260);
+  let m = heroBox(c, W, H);
+  const d = 260 * Math.max(m.w / box.w, m.h / box.h);
+  heroOrbit(c, 0.62, el, d);
+  m = heroBox(c, W, H);
+  c.setViewOffset(W, H, m.cx - box.cx, m.cy - box.cy, W, H); c.updateProjectionMatrix();
+  heroOrbit(c, heroAngle, el, d);
 };
 
 /* Cómo funciona: cámara por pasos, una animación por paso, todo atado al scroll */
@@ -103,7 +143,6 @@ const KEYS = [ // [objetivo, desplazamiento de cámara]
 ];
 let howP = 0, howStep = -1;
 const busLabel = $('#busLabel');
-const tmpA = V(0, 0, 0), tmpB = V(0, 0, 0), tmpT = V(0, 0, 0);
 function howProgress() {
   const r = howEl.getBoundingClientRect();
   return clamp(-r.top / (r.height - window.innerHeight));
@@ -149,7 +188,6 @@ howView.onFrame = (v) => {
     const q = stage.project(v, V(COLOR.x - 1.2, 31, CAD.streetZ));
     busLabel.style.transform = `translate(${q.x}px, ${q.y}px)`;
   }
-  if (i !== howStep) setHowStep(i);
 };
 function setHowStep(i) {
   howStep = i;
@@ -167,6 +205,10 @@ const ctr = new OrbitControls(exView.camera, exView.el);
 ctr.enableDamping = true; ctr.dampingFactor = 0.08;
 ctr.minDistance = 22; ctr.maxDistance = 280; ctr.maxPolarAngle = Math.PI * 0.49;
 ctr.enablePan = false; ctr.enableZoom = false;
+// en pantallas táctiles un dedo baja la página y dos dedos giran y acercan (con el mouse no cambia nada)
+exView.el.style.touchAction = 'pan-y';
+ctr.touches = { ONE: null, TWO: THREE.TOUCH.DOLLY_ROTATE };
+if (window.matchMedia('(pointer: coarse)').matches) $('.explore-hint').textContent = 'Usa dos dedos para girar y acercar.';
 // la rueda solo acerca después de tocar el visor, para no atrapar el scroll de la página
 exView.el.addEventListener('pointerdown', () => { ctr.enableZoom = true; exView.el.setAttribute('data-lenis-prevent', ''); });
 exView.el.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') { ctr.enableZoom = false; exView.el.removeAttribute('data-lenis-prevent'); } });
@@ -241,14 +283,20 @@ function select(key) {
     <p>${n.text}</p>
     <dl><div><dt>Sensor</dt><dd>${n.sensor}</dd></div><div><dt>Actuador</dt><dd>${n.actuator}</dd></div><div><dt>Responsable</dt><dd>${n.owner}</dd></div></dl>
     <div class="acts"></div>`;
-  (ACTS[key] || []).forEach(([label, fn]) => {
-    const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = label;
-    b.addEventListener('click', fn); $('.acts', card).appendChild(b);
-  });
+  renderActs(key);
   if ((key === 'light' || key === 'sos' || key === 'route') && exTarget.roof === 0) setAct('roof', true);
   const anchor = ANCHORS[key];
   const scale = exView.camera.aspect < 1 ? 1.4 : 1;
   flyTo(anchor.clone().addScaledVector(VIEWS[key], scale), anchor.clone());
+}
+// botones "Probar" de la ficha; sin 3D (o mientras carga el modelo) no hay nada que probar
+function renderActs(key) {
+  const box = $('.acts', card); if (!box) return;
+  box.innerHTML = '';
+  (stage && stage.ready ? ACTS[key] || [] : []).forEach(([label, fn]) => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = label;
+    b.addEventListener('click', fn); box.appendChild(b);
+  });
 }
 $$('#nodeStops [data-node]').forEach(b => b.addEventListener('click', () => select(b.dataset.node)));
 
@@ -275,14 +323,15 @@ function resetExplore() {
 
 /* ---------- cargar modelo ---------- */
 const status = $('#loadStatus');
-stage.load('/models/safewait.glb').then(() => {
+if (stage) stage.load('/models/safewait.glb').then(() => {
   status.hidden = true;
   stage.assemble();
   document.documentElement.classList.add('model-ready');
   route.layout();
+  if (selected) renderActs(selected); // la ficha abierta durante la carga recibe sus botones
 }).catch(err => {
   console.error(err);
-  status.textContent = 'No se pudo cargar el modelo 3D.';
+  no3D();
 });
 // el grabado del panel usa el logo oficial y las fuentes de la página
 const logoImg = new Image();
@@ -290,7 +339,7 @@ logoImg.src = '/safewait-logo.svg';
 Promise.all([
   logoImg.decode().catch(() => null),
   document.fonts ? Promise.all([document.fonts.load('600 100px "Inter Tight Variable"'), document.fonts.load('500 40px "Inter Variable"')]).catch(() => null) : null,
-]).then(() => stage.drawLogos(logoImg.complete && logoImg.naturalWidth ? logoImg : null));
+]).then(() => stage && stage.drawLogos(logoImg.complete && logoImg.naturalWidth ? logoImg : null));
 
 /* ---------- línea de ruta ---------- */
 const route = new Route($('#route'), { howEl });
@@ -300,7 +349,10 @@ let last = performance.now();
 function tick() {
   const now = performance.now();
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
-  stage.render(now / 1000, dt);
+  if (stage) stage.render(now / 1000, dt);
+  // el paso de Cómo funciona sale del scroll, no del render (así funciona sin 3D)
+  const hs = Math.min(4, Math.floor(howProgress() * 5));
+  if (hs !== howStep) setHowStep(hs);
   route.update();
 }
 if (lenis) {
@@ -310,7 +362,7 @@ if (lenis) {
 
 let rT;
 window.addEventListener('resize', () => {
-  stage.resize();
+  if (stage) stage.resize();
   clearTimeout(rT); rT = setTimeout(() => { route.layout(); ScrollTrigger.refresh(); }, 120);
 });
 new ResizeObserver(() => route.layout()).observe(document.body);
@@ -370,7 +422,7 @@ if (standMode) {
   function restart() {
     resetExplore();
     scrollToY(0, 2.4);
-    setTimeout(() => { stage.assemble(); heroAngle = 0.62; arm(); }, reduceMotion ? 0 : 2500);
+    setTimeout(() => { if (stage) stage.assemble(); heroAngle = 0.62; arm(); }, reduceMotion ? 0 : 2500);
   }
   ['pointerdown', 'pointermove', 'wheel', 'keydown', 'touchstart'].forEach(ev => window.addEventListener(ev, arm, { passive: true }));
   arm();

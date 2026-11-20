@@ -49,7 +49,7 @@ export const ANCHORS = {
 };
 
 export function defaultState() {
-  return { night: 0, door: 0, bars: 0, roof: 0, xray: 0, real: false, busX: null, sos: 0, oled: 0, hl: null };
+  return { night: 0, door: 0, bars: 0, roof: 0, xray: 0, real: false, busX: null, sos: 0, oled: 0, hl: null, plinth: true };
 }
 
 /* ---------- texturas generadas ---------- */
@@ -86,6 +86,7 @@ export class Stage {
     this.meshes = [];      // meshes con material dependiente del estado
     this.pieces = [];      // piezas del armado
     this.bars = []; this.roof = [];
+    this.plinth = [];     // pedestal y mecanismo bajo la banqueta: se ocultan en el hero (state.plinth = false)
 
     this.#lights(mobile);
     this.#materials();
@@ -96,7 +97,7 @@ export class Stage {
 
   /* ---------- luces y piso ---------- */
   #lights(mobile) {
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(800, 800), new THREE.ShadowMaterial({ opacity: 0.11 }));
+    const ground = this.ground = new THREE.Mesh(new THREE.PlaneGeometry(800, 800), new THREE.ShadowMaterial({ opacity: 0.11 }));
     ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; this.scene.add(ground);
 
     this.hemi = new THREE.HemisphereLight(0xffffff, 0xdfe4ea, 2.3); this.scene.add(this.hemi);
@@ -445,11 +446,35 @@ export class Stage {
       if (cls === 'bars') this.bars.push(o);
       if (/^(Rooffront|Roofside|techoUp|esquina)/.test(name)) this.roof.push(o);
       if (cls === 'logoBlock') this.#logoPlane(o);
+      if (/^(bastidor|under_|logo|guia|soporte|polea|bandeja|barrote|cremallera)/.test(name)) this.plinth.push(o);
       const ph = ORDER.find(([re]) => re.test(name));
       this.#piece(o, (ph ? ph[1] : 1.0) + (i % 3) * 0.04, 0.01);
     });
+    this.#cleanTop();
     this.root.add(model);
     this.ready = true;
+  }
+
+  // tapa de la calle sin las ranuras del corte láser (para el hero, sin pedestal); conserva el hueco del sensor de color
+  #cleanTop() {
+    const x1 = -33.5, x2 = 33.5, z1 = -32.71, z2 = 17.29, r = 1.2; // contorno de bastidor_top
+    const sh = new THREE.Shape(); // el shape va en (x, −z): al girarlo queda acostado
+    sh.moveTo(x1 + r, -z2); sh.lineTo(x2 - r, -z2); sh.quadraticCurveTo(x2, -z2, x2, -z2 + r);
+    sh.lineTo(x2, -z1 - r); sh.quadraticCurveTo(x2, -z1, x2 - r, -z1);
+    sh.lineTo(x1 + r, -z1); sh.quadraticCurveTo(x1, -z1, x1, -z1 - r);
+    sh.lineTo(x1, -z2 + r); sh.quadraticCurveTo(x1, -z2, x1 + r, -z2);
+    const hole = new THREE.Path(), h = 1.15, c = Math.cos(COLOR.rot), sn = Math.sin(COLOR.rot);
+    [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(([a, b], i) => {
+      const x = COLOR.x + a * h * c + b * h * sn, z = COLOR.z - a * h * sn + b * h * c;
+      i ? hole.lineTo(x, -z) : hole.moveTo(x, -z);
+    });
+    sh.holes.push(hole);
+    const geo = new THREE.ExtrudeGeometry(sh, { depth: CAD.baseTop - 15.07, bevelEnabled: false, curveSegments: 6 });
+    geo.rotateX(-Math.PI / 2); geo.translate(0, 15.07, 0);
+    const top = this.cleanTopMesh = new THREE.Mesh(geo);
+    this.root.add(top);
+    this.#track(top, 'base');
+    this.#piece(top, 0);
   }
 
   // el grabado va sobre la cara exterior del panel inclinado
@@ -467,6 +492,7 @@ export class Stage {
     plane.position.set((minX + maxX) / 2, yMid + 0.02, best - yMid + 0.02);
     this.root.add(plane);
     this.#track(plane, 'logo', { edges: false });
+    this.plinth.push(plane);
     plane.castShadow = false;
     this.#piece(plane, 0.3);
   }
@@ -528,6 +554,11 @@ export class Stage {
       p.obj.position.y = p.obj.userData.y0 + (p.obj.userData.asmOff || 0);
       for (const m of p.meshes) m.visible = (m.userData.fade ?? 1) > 0;
     }
+    // hero: sin pedestal; la tapa limpia sustituye a la del CAD y la sombra cae justo debajo de ella
+    if (!s.plinth) this.plinth.forEach(m => { m.visible = false; });
+    if (this.cleanTopMesh) this.cleanTopMesh.visible = this.cleanTopMesh.visible && !s.plinth;
+    this.ground.position.y = s.plinth ? 0 : 15.06;
+    this.ground.material.opacity = s.plinth ? .11 : .14;
     this.bars.forEach(o => { o.position.y += s.bars * CAD.barLift / 100; });
     const roofLift = s.roof * 0.4;
     this.roof.forEach(o => { o.position.y += roofLift; if (s.roof >= .98) o.visible = false; });
