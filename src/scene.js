@@ -27,22 +27,29 @@ export const CAD = {
 };
 // sensor de color TCS34725: asoma por el hueco cuadrado del CAD (girado ~35°, centro en x 25.98, z 6.05)
 export const COLOR = { x: 25.98, z: 6.05, rot: -Math.atan2(5.96 - 4.14, 27.97 - 25.37) };
-// FSR del nodo SOS: muro izquierdo interior, bajo la ranura del CAD (z −21.74 a −19.04, y 28.27)
-export const FSR = { x: -21.85, y: 24.6, z: -20.39 };
+// FSR del nodo SOS: muro del fondo, bajo la ranurita del CAD (x −15.07 a −13.97, y 21.27 a 21.42)
+export const FSR = { x: -14.52, y: 19.7, z: -23.74 };
+// pantalla OLED del nodo Ruta: muro izquierdo interior, sobre la ranura del CAD (z −21.74 a −19.04, y 28.27)
+export const OLED = { x: -21.92, y: 27.4, z: -20.39, size: 2.7 };
+// módulo de afuera (tapa mod_up, y 21.27): buzzer en el círculo, fotorresistencia en el cuadrito
+export const BUZZER = { x: 17.28, y: 21.27, z: -22.655 };
+export const LDR = { x: 21.185, y: 21.27, z: -22.65 };
+// la cremallera sale por el hueco cuadrado a la izquierda de los barrotes (x −22.03 a −21.03)
+const RACK_X = -21.53;
 const hutCx = (CAD.inner.x1 + CAD.inner.x2) / 2, hutCz = (CAD.backInnerZ + CAD.front.z) / 2;
 const ledY = CAD.wallTop - 1.4, ledZ = CAD.backInnerZ + 0.07;
 
 // puntos de cada nodo (para hotspots y cámara)
 export const ANCHORS = {
   light: new THREE.Vector3(hutCx, ledY, ledZ + 0.4),
-  sos: new THREE.Vector3(FSR.x + 0.5, FSR.y, FSR.z),
+  sos: new THREE.Vector3(FSR.x, FSR.y, FSR.z + 0.5),
   door: new THREE.Vector3((CAD.door.x1 + CAD.door.x2) / 2, 23, CAD.front.z + 0.4),
   route: new THREE.Vector3(COLOR.x, 15.9, COLOR.z),
   bars: new THREE.Vector3(19.2, 19.6, -16.3), // keypad
 };
 
 export function defaultState() {
-  return { night: 0, door: 0, bars: 0, roof: 0, xray: 0, real: false, busX: null, sos: 0, hl: null };
+  return { night: 0, door: 0, bars: 0, roof: 0, xray: 0, real: false, busX: null, sos: 0, oled: 0, hl: null };
 }
 
 /* ---------- texturas generadas ---------- */
@@ -285,20 +292,61 @@ export class Stage {
     sl.position.set(0.6, 0.14, 0.5); sensor.add(sl);
     this.#piece(sensor, 0.5);
 
+    // FSR: pastilla redonda en la cara interior del muro del fondo; la cola sube a la ranurita
     const fsr = new THREE.Group(); this.root.add(fsr);
-    const wallX = -21.92 + 0.03;
+    const wallZ = CAD.backInnerZ + 0.06;
     const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.06, 32));
-    pad.rotation.z = Math.PI / 2; pad.position.set(wallX + 0.03, FSR.y, FSR.z); fsr.add(pad);
+    pad.rotation.x = Math.PI / 2; pad.position.set(FSR.x, FSR.y, wallZ + 0.03); fsr.add(pad);
     this.#track(pad, 'fsr', { hl: 'sos', edges: false });
-    const tail = new THREE.Mesh(new THREE.BoxGeometry(0.04, 28.4 - FSR.y - 0.9, 0.5));
-    tail.position.set(wallX + 0.02, (FSR.y + 0.9 + 28.4) / 2, FSR.z); fsr.add(tail);
+    const tail = new THREE.Mesh(new THREE.BoxGeometry(0.5, 21.4 - FSR.y - 0.9, 0.04));
+    tail.position.set(FSR.x, (FSR.y + 0.9 + 21.4) / 2, wallZ + 0.02); fsr.add(tail);
     this.#track(tail, 'fsr', { edges: false });
     this.#piece(fsr, 1.3);
 
-    // ondas del SOS (atadas al scroll, no en loop)
+    // pantalla OLED: placa negra en el muro izquierdo interior, mirando hacia adentro (+x)
+    const oled = new THREE.Group(); oled.position.set(OLED.x + 0.04, OLED.y, OLED.z); oled.rotation.y = Math.PI / 2; this.root.add(oled);
+    const board = new THREE.Mesh(new THREE.BoxGeometry(OLED.size, OLED.size, 0.08));
+    oled.add(board); this.#track(board, 'fsr', { hl: 'route', edges: false });
+    this.oledTex = canvasTex(256, 128, (g, w, h) => {
+      g.fillStyle = '#000'; g.fillRect(0, 0, w, h);
+      g.fillStyle = '#8fd0ff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.font = '700 52px "Inter Tight Variable", "Inter Tight", system-ui, sans-serif'; g.fillText('RUTA 2', w / 2, h * 0.38);
+      g.font = '600 30px "Inter Variable", Inter, system-ui, sans-serif'; g.fillText('AZUL', w / 2, h * 0.76);
+    }, 4);
+    this.oledMat = new THREE.MeshStandardMaterial({ color: 0x05070a, emissive: 0xffffff, emissiveMap: this.oledTex, emissiveIntensity: 0, roughness: .25 });
+    const screen = new THREE.Mesh(new THREE.PlaneGeometry(OLED.size * 0.74, OLED.size * 0.37), this.oledMat);
+    screen.position.set(0, OLED.size * 0.08, 0.045); oled.add(screen);
+    this.#piece(oled, 1.3);
+
+    // buzzer: cilindro negro que asoma por el círculo de la tapa del módulo
+    const buzzer = new THREE.Group(); buzzer.position.set(BUZZER.x, BUZZER.y, BUZZER.z); this.root.add(buzzer);
+    const bz = new THREE.Mesh(new THREE.CylinderGeometry(0.56, 0.56, 0.7, 32)); bz.position.y = -0.1; buzzer.add(bz);
+    this.#track(bz, 'fsr', { hl: 'sos', edges: false });
+    const bzHole = new THREE.Mesh(new THREE.CircleGeometry(0.12, 16), this.M.chip);
+    bzHole.rotation.x = -Math.PI / 2; bzHole.position.y = 0.26; buzzer.add(bzHole);
+    this.#piece(buzzer, 0.7);
+
+    // fotorresistencia: cabeza redonda con la pista en zigzag, en el cuadrito de la tapa
+    const ldr = new THREE.Group(); ldr.position.set(LDR.x, LDR.y, LDR.z); this.root.add(ldr);
+    const ldrTex = canvasTex(64, 64, (g, w, h) => {
+      g.fillStyle = '#e9d9b0'; g.fillRect(0, 0, w, h);
+      g.strokeStyle = '#b8432a'; g.lineWidth = 5; g.beginPath();
+      for (let i = 0; i < 5; i++) { const y = 10 + i * 11; g.moveTo(i % 2 ? 52 : 12, y); g.lineTo(i % 2 ? 12 : 52, y); if (i < 4) g.lineTo(i % 2 ? 12 : 52, y + 11); }
+      g.stroke();
+    }, 4);
+    const head = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.2, 24), [
+      new THREE.MeshStandardMaterial({ color: 0xe9d9b0, roughness: .4 }),
+      new THREE.MeshStandardMaterial({ map: ldrTex, roughness: .3 }),
+      new THREE.MeshStandardMaterial({ color: 0xe9d9b0, roughness: .4 }),
+    ]);
+    head.position.y = 0.06; ldr.add(head);
+    this.ldrHead = head;
+    this.#piece(ldr, 0.7);
+
+    // ondas del SOS: salen del buzzer (atadas al scroll, no en loop)
     this.rings = [0, 1, 2].map(() => {
-      const m = new THREE.Mesh(new THREE.RingGeometry(1.0, 1.18, 48), this.M.ring.clone());
-      m.rotation.y = Math.PI / 2; m.position.set(wallX + 0.15, FSR.y, FSR.z); m.visible = false; this.root.add(m); return m;
+      const m = new THREE.Mesh(new THREE.RingGeometry(0.75, 0.9, 48), this.M.ring.clone());
+      m.rotation.x = -Math.PI / 2; m.position.set(BUZZER.x, BUZZER.y + 0.45, BUZZER.z); m.visible = false; this.root.add(m); return m;
     });
   }
 
@@ -350,6 +398,11 @@ export class Stage {
     ];
     list.forEach((o, i) => {
       const name = o.name || (o.parent && o.parent.name) || '';
+      if (name.startsWith('cremallera')) { // en el CAD quedó a la derecha; va en el hueco cuadrado de la izquierda
+        o.updateMatrixWorld(true); box.setFromObject(o).getCenter(c);
+        const w = o.getWorldPosition(new THREE.Vector3()); w.x += RACK_X - c.x;
+        o.position.copy(o.parent.worldToLocal(w)); o.updateMatrixWorld(true);
+      }
       box.setFromObject(o).getCenter(c);
       boxUV(o.geometry, 1 / 300);          // unidades del mesh en mm
       const has = (...k) => k.some(x => name.startsWith(x));
@@ -466,6 +519,9 @@ export class Stage {
       Object.values(this.busMats).forEach(m => { m.opacity = op; m.depthWrite = op > .99; });
       bus.visible = op > 0.01;
     }
+
+    // pantalla OLED: se prende cuando el camión está en el paradero
+    this.oledMat.emissiveIntensity = 0.06 + 1.6 * s.oled;
 
     // ondas SOS
     this.rings.forEach((r, i) => {

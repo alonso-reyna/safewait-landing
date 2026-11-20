@@ -96,9 +96,9 @@ const howEl = $('#como-funciona');
 const KEYS = [ // [objetivo, desplazamiento de cámara]
   [V(-2, 16, -6), V(78, 88, 136)],      // vista general
   [V(-7, 27, -18), V(26, 50, 72)],      // 1 luz (sin techo)
-  [V(-17, 22, -18), V(70, 84, 40)],     // 2 SOS (sin techo, desde arriba a la derecha)
+  [V(0, 20, -18), V(22, 110, 62)],      // 2 SOS (sin techo): FSR en el muro del fondo y buzzer en el módulo
   [V(-6, 23, -11), V(18, 14, 84)],      // 3 puerta
-  [V(10, 18, 0), V(30, 48, 104)],       // 4 ruta y camión
+  [V(2, 20, -6), V(44, 62, 96)],        // 4 ruta y camión (sin techo, se ve la OLED)
   [V(-7, 23, -11), V(-22, 18, 96)],     // 5 barrotes
 ];
 let howP = 0, howStep = -1;
@@ -119,7 +119,7 @@ howView.onFrame = (v) => {
   s.sos = i === 1 ? a : 0;
   s.door = i === 2 ? a : i === 3 ? back : 0;
   s.bars = i === 4 ? a : 0;
-  s.roof = i === 0 ? e : i === 1 ? 1 : i === 2 ? back : 0;
+  s.roof = i === 0 ? e : i === 1 ? 1 : i === 2 ? back : i === 3 ? e : i === 4 ? back : 0;
   s.hl = NODES[i].key;
   // camión: entra, se detiene sobre el sensor, se va
   if (i === 3) {
@@ -130,6 +130,7 @@ howView.onFrame = (v) => {
     else s.busX = stop + (80 - stop) * easeIn((a - 0.7) / 0.3);
     if (t < 0.3 && !reduceMotion) s.busX = -70;
   } else s.busX = null;
+  s.oled = i === 3 ? (reduceMotion ? a : clamp((a - 0.3) / 0.08) * clamp((0.8 - a) / 0.08)) : 0;
 
   // cámara
   shiftView(v.camera, v.rect, v.rect.width * 0.2);
@@ -171,7 +172,7 @@ exView.el.addEventListener('pointerdown', () => { ctr.enableZoom = true; exView.
 exView.el.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') { ctr.enableZoom = false; exView.el.removeAttribute('data-lenis-prevent'); } });
 
 const EX_HOME = { tgt: V(-2, 15, -3), dir: V(76, 61, 123).normalize() };
-const VIEWS = { light: V(18, 35, 50), sos: V(42, 50, 24), door: V(11, 9, 50), route: V(12, 30, 36), bars: V(-10, 26, 58) };
+const VIEWS = { light: V(18, 35, 50), sos: V(26, 46, 52), door: V(11, 9, 50), route: V(12, 30, 36), bars: V(-10, 26, 58) };
 const exTarget = { night: 0, door: 0, bars: 0, roof: 0, xray: 0 };
 let fly = null, exHomed = false, selected = null;
 function homePose() {
@@ -203,6 +204,7 @@ exView.onFrame = (v, now, dt) => {
   s.roof = approach(s.roof, exTarget.roof, 3, dt);
   s.xray = approach(s.xray, exTarget.xray, 3, dt);
   s.hl = null;
+  s.oled = approach(s.oled, selected === 'route' ? 1 : 0, 3, dt);
   if (fly) {
     const t = Math.min(1, (now * 1000 - fly.t0) / fly.dur), e = ease(t);
     v.camera.position.lerpVectors(fly.p0, fly.p1, e);
@@ -243,7 +245,7 @@ function select(key) {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = label;
     b.addEventListener('click', fn); $('.acts', card).appendChild(b);
   });
-  if ((key === 'light' || key === 'sos') && exTarget.roof === 0) setAct('roof', true);
+  if ((key === 'light' || key === 'sos' || key === 'route') && exTarget.roof === 0) setAct('roof', true);
   const anchor = ANCHORS[key];
   const scale = exView.camera.aspect < 1 ? 1.4 : 1;
   flyTo(anchor.clone().addScaledVector(VIEWS[key], scale), anchor.clone());
