@@ -38,6 +38,8 @@ export const LDR = { x: 21.185, y: 21.27, z: -22.65 };
 const RACK_X = -21.53;
 const hutCx = (CAD.inner.x1 + CAD.inner.x2) / 2, hutCz = (CAD.backInnerZ + CAD.front.z) / 2;
 const ledY = CAD.wallTop - 1.4, ledZ = CAD.backInnerZ + 0.07;
+// normal del plano de corte del armado: casi vertical (las paredes suben) con algo de inclinación (lo plano se barre)
+const SWEEP = new THREE.Vector3(0.45, -1, 0.3).normalize();
 
 // puntos de cada nodo (para hotspots y cámara)
 export const ANCHORS = {
@@ -79,6 +81,7 @@ export class Stage {
     r.toneMapping = THREE.ACESFilmicToneMapping;
     r.toneMappingExposure = 1.0;
     r.autoClear = true;
+    r.localClippingEnabled = true; // el armado revela cada pieza con un plano de corte
 
     this.scene = new THREE.Scene();
     this.root = new THREE.Group();
@@ -250,10 +253,13 @@ export class Stage {
     }
     this.meshes.push(mesh);
   }
-  #piece(obj, t0, unit = 1) {
+  #piece(obj, t0) {
     const meshes = []; obj.traverse(o => { if (o.isMesh) meshes.push(o); });
-    obj.userData.y0 = obj.position.y; obj.userData.unit = unit;
-    this.pieces.push({ obj, t0, meshes });
+    obj.userData.y0 = obj.position.y;
+    // plano de corte de la pieza: inclinado, para que las piezas planas (calle, techo) se barran en diagonal y no aparezcan en un cuadro
+    const plane = new THREE.Plane(SWEEP.clone(), 0);
+    meshes.forEach(m => { m.userData.clip = plane; });
+    this.pieces.push({ obj, t0, meshes, plane });
   }
   #box(x1, x2, y1, y2, z1, z2, parent) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(x2 - x1, y2 - y1, z2 - z1));
@@ -448,7 +454,7 @@ export class Stage {
       if (cls === 'logoBlock') this.#logoPlane(o);
       if (/^(bastidor|under_|logo|guia|soporte|polea|bandeja|barrote|cremallera)/.test(name)) this.plinth.push(o);
       const ph = ORDER.find(([re]) => re.test(name));
-      this.#piece(o, (ph ? ph[1] : 1.0) + (i % 3) * 0.04, 0.01);
+      this.#piece(o, (ph ? ph[1] : 1.0) + (i % 3) * 0.04);
     });
     this.#cleanTop();
     this.root.add(model);
@@ -499,9 +505,20 @@ export class Stage {
   }
 
   /* Precalentado: antes del armado, con los materiales que de verdad usa cada vista (desvanecidos y asentados),
-     compila los shaders, crea los clones de desvanecido, sube buffers y arma las sombras. Si no, los primeros
+     compila los shaders, crea los clones con plano de corte, sube buffers y arma las sombras. Si no, los primeros
      cuadros del armado se traban. Se dibuja en el lienzo y se borra en la misma tarea: nunca llega a verse. */
   async #prewarm() {
+    const box = new THREE.Box3();
+    this.root.updateMatrixWorld(true);
+    const corner = new THREE.Vector3();
+    for (const p of this.pieces) { // rango de la pieza a lo largo de la normal del barrido
+      box.setFromObject(p.obj); p.d1 = Infinity; p.d2 = -Infinity;
+      for (let i = 0; i < 8; i++) {
+        const d = SWEEP.dot(corner.set(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z));
+        p.d1 = Math.min(p.d1, d); p.d2 = Math.max(p.d2, d);
+      }
+      p.d1 -= 0.05; p.d2 += 0.05;
+    }
     const r = this.renderer, cam = new THREE.PerspectiveCamera(30, 1, 1, 1500);
     cam.position.set(0, 120, 200); cam.lookAt(0, 20, 0); cam.updateMatrixWorld();
     const states = [], seen = new Set();
@@ -530,18 +547,23 @@ export class Stage {
       this.asm.t += Math.min(dt, 1 / 30);
     }
     const t = this.asm.t < 0 ? 99 : this.asm.t;
-    const span = 0.9, scale = this.asm.dur / 2.5;
+    const span = 1.0, scale = this.asm.dur / 2.5;
     let all = true;
     for (const p of this.pieces) {
       const k = Math.min(1, Math.max(0, (t - p.t0 * scale) / span));
       if (k < 1) all = false;
-      const e = 1 - Math.pow(1 - k, 4);
-      p.obj.userData.asmOff = (1 - e) * 3 * p.obj.userData.unit;
+      // la pieza aparece de abajo hacia arriba en diagonal (suave al arrancar y al llegar): se ve lo que cumple dot(n,p) >= -constant
+      const e = k * k * (3 - 2 * k);
+      if (p.d1 !== undefined) p.plane.constant = -p.d2 + (p.d2 - p.d1) * e;
       p.meshes.forEach(m => { m.userData.fade = k; });
     }
     this.asm.done = all;
-    this.asm.end ??= Math.max(...this.pieces.map(p => p.t0)) * scale + span;
-    this.asm.p = Math.min(1, t / this.asm.end); // avance global: llega a 1 cuando termina la última pieza
+  }
+
+  // copia del material que solo dibuja (y proyecta sombra de) lo que queda bajo el plano de la pieza
+  #clipped(mat, plane) {
+    const c = mat.clone(); c.clippingPlanes = [plane]; c.clipShadows = true;
+    return c;
   }
 
   /* ---------- aplicar el estado de una vista ---------- */
@@ -569,36 +591,35 @@ export class Stage {
       let mat = (!s.real && s.hl && m.userData.hl === s.hl) ? M.accent : set[cls];
       if (cls === 'bars' && !s.real && s.hl !== 'bars' && s.bars > .5) mat = M.accentSoft;
       const f = m.userData.fade ?? 1;
-      if (f < 1) {
-        const cache = m.userData.fadeMats || (m.userData.fadeMats = {});
-        let fm = cache[mat.uuid];
-        if (!fm) { fm = cache[mat.uuid] = mat.clone(); fm.transparent = true; }
-        fm.opacity = f; fm.depthWrite = false; mat = fm; // escribir profundidad casi invisible abre huecos en piezas ya visibles
+      if (f < 1 && m.userData.clip) {
+        const cache = m.userData.clipMats || (m.userData.clipMats = {});
+        let cm = cache[mat.uuid];
+        if (!cm) cm = cache[mat.uuid] = this.#clipped(mat, m.userData.clip);
+        cm.opacity = mat.opacity; cm.depthWrite = mat.depthWrite; mat = cm;
       }
       m.material = mat;
       const e = m.userData.edges;
       if (e) {
-        e.visible = f > 0;
-        if (f < 1) { const em = e.userData.fadeMat || (e.userData.fadeMat = this.edgeMat.clone()); em.color.copy(this.edgeMat.color); em.opacity = this.edgeMat.opacity * f; e.material = em; }
-        else e.material = this.edgeMat;
+        if (f < 1 && m.userData.clip) {
+          const em = e.userData.clipMat || (e.userData.clipMat = this.#clipped(this.edgeMat, m.userData.clip));
+          em.color.copy(this.edgeMat.color); em.opacity = this.edgeMat.opacity; e.material = em;
+        } else e.material = this.edgeMat;
       }
     }
 
     // posiciones: armado + estado
     for (const p of this.pieces) {
-      p.obj.position.y = p.obj.userData.y0 + (p.obj.userData.asmOff || 0);
+      p.obj.position.y = p.obj.userData.y0;
       for (const m of p.meshes) {
         const f = m.userData.fade ?? 1, u = m.userData;
         m.visible = f > 0;
-        if (u.cast0 === undefined) u.cast0 = m.castShadow;
-        m.castShadow = u.cast0 && f > .6; // la sombra entra cuando la pieza ya se ve, no antes
         if (!u.cls) { // vidrio, sensores, LEDs: su material no lo pone el estado
           const base = u.mat0 || (u.mat0 = m.material);
           if (f < 1) {
             const bs = [].concat(base);
-            const fs = u.asmMat || (u.asmMat = bs.map(b => Object.assign(b.clone(), { transparent: true, depthWrite: false })));
-            fs.forEach((x, i) => { x.opacity = bs[i].opacity * f; if (x.emissive) x.emissiveIntensity = bs[i].emissiveIntensity; });
-            m.material = Array.isArray(base) ? fs : fs[0];
+            const cs = u.clipMat || (u.clipMat = bs.map(b => this.#clipped(b, u.clip)));
+            cs.forEach((x, i) => { if (x.emissive) x.emissiveIntensity = bs[i].emissiveIntensity; });
+            m.material = Array.isArray(base) ? cs : cs[0];
           } else m.material = base;
         }
       }
@@ -607,7 +628,7 @@ export class Stage {
     if (!s.plinth) this.plinth.forEach(m => { m.visible = false; });
     if (this.cleanTopMesh) this.cleanTopMesh.visible = this.cleanTopMesh.visible && !s.plinth;
     this.ground.position.y = s.plinth ? 0 : 15.06;
-    this.ground.material.opacity = (s.plinth ? .11 : .14) * (this.asm.p ?? 1);
+    this.ground.material.opacity = s.plinth ? .11 : .14;
     this.bars.forEach(o => { o.position.y += s.bars * CAD.barLift / 100; });
     const roofLift = s.roof * 0.4;
     this.roof.forEach(o => { o.position.y += roofLift; if (s.roof >= .98) o.visible = false; });
