@@ -6,7 +6,7 @@ import '@fontsource-variable/inter-tight';
 import * as THREE from 'three';
 import { Stage, ANCHORS, CAD, FSR, BUZZER, BLUE } from '../src/scene.js';
 import { NODES } from '../src/content.js';
-import { makeBus } from './bus.js';
+import { makeBus } from '../src/bus.js';
 import { buildDetails, doorGrids, KEYPAD_TOP } from '../src/detail.js';
 import { makeWave } from '../src/fx.js';
 import { DUR, T, CODE, LABELS, MOVES } from './guion.js';

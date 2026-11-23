@@ -125,7 +125,7 @@ export function buildDetails(stage, { tone = 0x58a5ea, leaf = 0x3d88d2, trunk = 
   }
 
   return {
-    press, piece,
+    press, piece, pieces,
     // t: segundos desde que se oprime la tecla
     setPress(pr, t) {
       const k = smooth(clamp(t / 0.06)) * (1 - smooth(clamp((t - 0.1) / 0.34)));   // baja rápido, regresa despacio
@@ -162,7 +162,9 @@ export function doorGrids(stage, color = 0x3a2e29) {
     bar(x1, x1 + F, y1, y2); bar(x2 - F, x2, y1, y2); bar(x1, x2, y2 - F, y2); bar(x1, x2, y1, y1 + F);   // marco
     bar((x1 + x2) / 2 - T / 2, (x1 + x2) / 2 + T / 2, y1, y2, 0.07);                                    // un larguero
     for (let i = 1; i < 6; i++) { const y = y1 + (y2 - y1) * i / 6; bar(x1, x2, y - T / 2, y + T / 2, 0.07); }   // cinco travesaños
-    leaves.push({ p, own });
+    leaves.push({ p, own, mat });
   });
-  return () => { for (const { p, own } of leaves) own.constant = (p.meshes[0].userData.fade ?? 1) >= 1 ? 1e6 : p.plane.constant; };
+  const sync = () => { for (const { p, own } of leaves) own.constant = (p.meshes[0].userData.fade ?? 1) >= 1 ? 1e6 : p.plane.constant; };
+  sync.mats = leaves.map(l => l.mat);
+  return sync;
 }

@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import { CONFIG, NODES, TEAM, TEACHERS } from './content.js';
 import { Stage, ANCHORS, COLOR, CAD, FSR, defaultState } from './scene.js';
 import { buildDetails, doorGrids } from './detail.js';
+import { makeBus } from './bus.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -41,6 +42,8 @@ const I = {
   chev: '<path d="M6 6l6 6-6 6"/><path d="M13 6l6 6-6 6"/>',
   cap: '<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11.5V16c2 2 10 2 12 0v-4.5"/>',
   hand: '<path d="M12 12V4.5a1.5 1.5 0 0 1 3 0V11"/><path d="M15 11V7.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1a6 6 0 0 1-5-2.7L3.6 14a1.5 1.5 0 0 1 2.5-1.6L8 15V6.500a1.5 1.5 0 0 1 3 0V11"/>',
+  layers: '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/><path d="M3 17.500l9 5 9-5"/>',
+  x: '<path d="M6 6l12 12"/><path d="M18 6L6 18"/>',
   chart: '<path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M3 20h18"/>',
 };
 const ic = (k, s = 22) => `<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${I[k]}</svg>`;
@@ -49,23 +52,37 @@ const ic = (k, s = 22) => `<svg aria-hidden="true" width="${s}" height="${s}" vi
 const STOPS = [['inicio', 'Inicio'], ['porque', 'Por qué'], ['nodos', 'Nodos'], ['equipo', 'Equipo']];
 // datos del problema como tiras de LED: [encendidas, total, cifra, texto destacado, resto]
 const FACTS = [
-  [5.59, 10, '55.9', 'Casi 6 de cada 10', 'personas dicen que en su ciudad falta alumbrado público.'],
-  [2, 3, '66.6', '2 de cada 3 mujeres', 'se sienten inseguras en el transporte público.'],
-  [1, 5, '22.1', '1 de cada 5', 'sufrió acoso o violencia sexual en un lugar público en seis meses.'],
+  [5.59, 10, '55.9', '6', 'de cada<br>10', 'personas dicen que falta alumbrado público en su ciudad.'],
+  [2, 3, '66.6', '2', 'de cada<br>3', 'mujeres se sienten inseguras en el transporte público.'],
+  [1, 5, '22.1', '1', 'de cada<br>5', 'sufrió acoso o violencia sexual en público en seis meses.'],
 ];
 const DOES = [['light', 'bulb', 'Luz que se enciende sola'], ['sos', 'bell', 'Botón de auxilio'], ['door', 'door', 'Puerta con tarjeta'], ['route', 'bus', 'Aviso de la ruta que llega'], ['bars', 'bars', 'Barrotes de emergencia']];
 const TILES = [['night', 'moon', 'Noche'], ['lamp', 'bulb', 'Luz'], ['sos', 'bell', 'SOS'], ['door', 'door', 'Puerta'], ['bus', 'bus', 'Camión'], ['bars', 'bars', 'Barrotes']];
 const FLOW = ['Sensor', 'NodeMCU', 'API Flask', 'MySQL', 'Looker'];
 const SOURCE = 'https://www.inegi.org.mx/contenidos/saladeprensa/boletines/2026/ensu/ENSU2026_10_RR.pdf';
 
-const strip = ([on, total, pct]) => {
+const fact = ([on, total, pct, big, of, text]) => {
   let h = '';
-  for (let i = 0; i < total; i++) {
-    const k = clamp(on - i);
-    h += k > 0 ? `<i class="on" style="--k:${k < 1 ? .55 : 1}"></i>` : '<i></i>';
-  }
-  return `<div class="leds" role="img" aria-label="${pct} por ciento">${h}<span>${pct}&nbsp;%</span></div>`;
+  for (let i = 0; i < total; i++) { const k = clamp(on - i); h += `<i${k > 0 ? ` class="on" style="--k:${k < 1 ? .5 : 1}"` : ''}></i>`; }
+  return `<li class="fact glass"><div class="fact-row"><b>${big}<small>${of}</small></b><p>${text}</p></div><div class="segs" role="img" aria-label="${pct} por ciento">${h}</div></li>`;
 };
+// rutas del nodo 4: el sensor clasifica seis colores (Arduino_Reto_Josue.ino) y cada color es una ruta de la tabla rutas
+const LINES = [
+  ['1', 'Roja', '#ff5a4d', 'M14 40H92L128 76H218L254 112H332'],
+  ['2', 'Azul', '#3d8bff', 'M14 128H70L114 84H232L268 48H332'],
+  ['3', 'Verde', '#35c27a', 'M52 12V48L96 92H250L286 128V156'],
+  ['4', 'Naranja', '#ff9a3d', 'M296 12V34L210 120H128L92 156H14'],
+  ['5', 'Cian', '#2cc9d9', 'M150 12V156'],
+  ['6', 'Morada', '#a875ff', 'M332 146H236L190 100V12'],
+];
+const ends = d => { const n = d.match(/-?\d+(\.\d+)?/g).map(Number); let x = n[0], y = n[1]; const cmds = d.match(/[MHVL][^MHVL]*/g); for (const c of cmds) { const v = c.slice(1).trim().split(/[ ,]+/).map(Number); if (c[0] === 'H') x = v[0]; else if (c[0] === 'V') y = v[0]; else { x = v[0]; y = v[1]; } } return [[n[0], n[1]], [x, y]]; };
+const MAP = `<svg viewBox="0 0 346 168" role="img" aria-label="Mapa simulado de las seis rutas; la Ruta 2, azul, pasa por SafeWait">
+  ${LINES.map(([n, , c, d]) => `<path class="ln${n === '2' ? ' hot' : ''}" d="${d}" stroke="${c}"/>`).join('')}
+  <path class="ln trace" d="${LINES[1][3]}" pathLength="1"/>
+  ${LINES.map(([n, , c, d]) => ends(d).map(([x, y]) => `<g class="bul${n === '2' ? ' hot' : ''}"><circle cx="${x}" cy="${y}" r="9" fill="${c}"/><text x="${x}" y="${y + 4}">${n}</text></g>`).join('')).join('')}
+  <rect class="hub" x="163" y="69" width="18" height="30" rx="9"/><circle class="ping" cx="172" cy="84" r="5"/>
+  <text class="lbl" x="172" y="60">SafeWait</text>
+</svg>`;
 
 const app = document.createElement('div');
 app.id = 'app';
@@ -73,7 +90,7 @@ app.innerHTML = `
 <a class="skip" href="#porque">Saltar al contenido</a>
 <nav class="bar glass" aria-label="Secciones">
   <a class="bar-logo" href="#inicio" aria-label="SafeWait, ir al inicio"><img src="/safewait-logo.svg" alt="" width="28" height="28"></a>
-  <div class="stops">${STOPS.map(([id, t], i) => `${i ? '<span class="seg" aria-hidden="true"></span>' : ''}<a href="#${id}" data-stop="${id}"><i></i>${t}</a>`).join('')}</div>
+  <div class="stops"><span class="lens" aria-hidden="true"></span>${STOPS.map(([id, t]) => `<a href="#${id}" data-stop="${id}">${t}</a>`).join('')}</div>
 </nav>
 
 <main>
@@ -99,7 +116,7 @@ app.innerHTML = `
     <div class="why-body">
       <div class="pane pane-dark">
         <h2>Esperar el camión de noche da miedo.</h2>
-        <ul class="facts">${FACTS.map(f => `<li>${strip(f)}<p><b>${f[3]}</b> ${f[4]}</p></li>`).join('')}</ul>
+        <ul class="facts">${FACTS.map(fact).join('')}</ul>
         <a class="pill glass" href="${SOURCE}" target="_blank" rel="noopener">${ic('ext', 16)}Fuente: INEGI, ENSU 2026</a>
       </div>
       <div class="pane pane-lit" inert>
@@ -121,10 +138,15 @@ app.innerHTML = `
     <div class="view" id="v-ctl" role="img" aria-label="Maqueta 3D del paradero. Desliza a los lados para girarla."><canvas></canvas></div>
     <div class="tools">
       <button type="button" class="round glass" id="roofBtn" aria-pressed="false" aria-label="Quitar techo">${ic('roof', 20)}</button>
+      <button type="button" class="round glass" id="realBtn" aria-pressed="false" aria-label="Materiales reales">${ic('layers', 20)}</button>
       <button type="button" class="round glass" id="homeBtn" aria-label="Vista inicial">${ic('reset', 20)}</button>
     </div>
     <section class="panel glass" aria-label="Centro de control">
-      <div class="status" id="status" aria-live="polite"><span class="num num-i">${ic('hand', 16)}</span><p>Toca un mosaico y mira la maqueta.</p></div>
+      <div class="status" id="status" aria-live="polite"></div>
+      <button type="button" class="map" id="map" aria-label="Cerrar el mapa de rutas" tabindex="-1">
+        <span class="map-head"><span class="map-n">2</span><span><b>Llegó la Ruta 2</b><i>Línea azul, a Rancho IoT</i></span><span class="map-x">${ic('x', 18)}</span></span>
+        ${MAP}
+      </button>
       <div class="tiles">${TILES.map(([k, icon, t]) => `<button type="button" class="tile" data-tile="${k}" aria-pressed="false"><span class="tile-ic">${ic(icon)}</span><span><b>${t}</b><i></i></span></button>`).join('')}</div>
     </section>
   </section>
@@ -153,17 +175,24 @@ const setTheme = light => {
 setTheme(false);
 
 /* ---------- barra de paradas ---------- */
-const stopLinks = $$('.stops a'), segs = $$('.stops .seg');
+const stopLinks = $$('.stops a'), lens = $('.lens');
 let stopNow = -1;
+function placeLens() {
+  const a = stopLinks[stopNow]; if (!a) return;
+  lens.style.width = a.offsetWidth + 'px';
+  lens.style.transform = `translateX(${a.offsetLeft}px)`;
+}
 function setStop(i) {
   if (i === stopNow) return;
   stopNow = i;
   stopLinks.forEach((a, k) => {
-    a.classList.toggle('on', k === i); a.classList.toggle('past', k < i);
+    a.classList.toggle('on', k === i);
     if (k === i) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current');
   });
-  segs.forEach((s, k) => s.classList.toggle('past', k < i));
+  placeLens();
 }
+new ResizeObserver(placeLens).observe($('.stops'));
+if (document.fonts) document.fonts.ready.then(placeLens);
 setStop(0);
 const sections = $$('main > section');
 const stopIO = new IntersectionObserver(es => {
@@ -191,7 +220,8 @@ if (!stage) no3D();
 // maqueta de los videos: azul claro de un solo tono, puertas con retícula, keypad de membrana, banca y pinitos
 const TONE = { wall: 0x6ab2f2, frame: 0x7cbdf5, floor: 0x58a5ea, base: 0x5aa8ec, grass: 0x4c98df, corner: 0x3d88d2, door: 0xf2f8fe, pcb: 0x1a4c80, fsr: 0x162660, bars: 0x6ab2f2, keypad: 0x58a5ea, pulley: 0x4c98df, guide: 0x58a5ea };
 const EDGE = new THREE.Color(0x3f86c9);
-let doorMat = null;
+let doorMat = null, doorMatR = null, bus = null, realNow = false, swapReal = () => {};
+const EDGE_R = new THREE.Color(0x6b4a2a);
 if (stage) {
   const W = stage.M.white;
   for (const k in TONE) if (W[k]) W[k].color.setHex(TONE[k]);
@@ -213,6 +243,11 @@ if (stage) {
     stage.logoW.needsUpdate = true;
   };
   stage.drawLogos();
+  { // materiales reales, como la maqueta física: madera clara y puerta de papel
+    const R = stage.M.real;
+    R.keypad = R.floor; R.wall.color.setHex(0xf2e2c8); R.frame.color.setHex(0xeedcc0);
+    doorMatR = R.door; doorMatR.color.setHex(0xf3ebdb); doorMatR.roughness = .92; doorMatR.emissive.set(0xfff0d0); doorMatR.emissiveIntensity = 0;
+  }
   const doorSync = doorGrids(stage, 0x162660);
   // sensor del SOS: sale horizontal por la ranura del muro del fondo y descansa en una repisa
   const SOS_P = V(FSR.x, 21.36, CAD.backInnerZ + 2.4);
@@ -225,27 +260,47 @@ if (stage) {
       m.position.set(FSR.x, SOS_P.y - 0.01, CAD.backInnerZ + 0.06 + 0.85);
     }
   }
-  { // pantalla OLED: ruta y destino
+  { // pantalla OLED: lo mismo que dibuja el nodo (mostrar() en Arduino_Reto_Josue.ino)
     const c = stage.oledTex.image, g = c.getContext('2d'), w = c.width, h = c.height;
     g.fillStyle = '#000'; g.fillRect(0, 0, w, h);
-    g.fillStyle = '#8fd0ff'; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.font = '700 52px "Inter Tight Variable", "Inter Tight", system-ui, sans-serif'; g.fillText('RUTA 2', w / 2, h * 0.36);
-    g.font = '600 28px "Inter Variable", Inter, system-ui, sans-serif'; g.fillText('Rancho IoT', w / 2, h * 0.76);
+    g.fillStyle = '#bfe4ff'; g.textAlign = 'left'; g.textBaseline = 'top';
+    g.font = '600 21px ui-monospace, Menlo, Consolas, monospace'; g.fillText('Color detectado:', 8, 8);
+    g.font = '700 50px ui-monospace, Menlo, Consolas, monospace'; g.fillText('AZUL', 8, 38);
+    g.font = '600 21px ui-monospace, Menlo, Consolas, monospace'; g.fillText('R:24 G:96 B:231', 8, 98);
     stage.oledTex.needsUpdate = true;
   }
   details = buildDetails(stage);
+  const detailsR = buildDetails(stage, { tone: 0xd8bf96, leaf: 0x4f8a3c, trunk: 0x7a5a3a, real: true });
+  const upd = details.update.bind(details);
+  details.update = (t, k) => { upd(t, k); detailsR.update(t, k); };
+  const shelf = new THREE.MeshStandardMaterial({ color: TONE.floor, roughness: .9 });
+  // cada vista elige su juego de detalles justo antes de dibujarse
+  swapReal = real => {
+    realNow = real;
+    for (const p of details.pieces) p.group.visible = p.group.visible && !real;
+    for (const p of detailsR.pieces) p.group.visible = p.group.visible && real;
+    shelf.color.setHex(real ? 0xd8bf96 : TONE.floor);
+    for (const m of doorSync.mats) m.color.setHex(real ? 0x2b2320 : 0x162660);
+  };
+  // camión del video: llega por la derecha, hacia −x, y solo se dibuja sobre la maqueta
+  bus = makeBus({ mirror: true, route: '2  RANCHO IOT' });
+  bus.group.position.set(0, CAD.baseTop, CAD.streetZ);
+  bus.group.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  stage.root.add(bus.group);
+  bus.setX(null);
   { // repisa bajo el sensor del SOS
     const g = new THREE.Group(), geo = new THREE.BoxGeometry(2.5, 0.3, 3.6);
     geo.translate(SOS_P.x, SOS_P.y - 0.19, CAD.backInnerZ + 1.8);
-    const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: TONE.floor, roughness: .9 })); m.castShadow = m.receiveShadow = true; g.add(m);
+    const m = new THREE.Mesh(geo, shelf); m.castShadow = m.receiveShadow = true; g.add(m);
     details.piece(g, 1.25);
   }
   const edgeObjs = [];
   stage.scene.onBeforeRender = () => {
     doorSync();
     if (!edgeObjs.length) for (const m of stage.meshes) if (m.userData.edges) edgeObjs.push(m.userData.edges);
-    stage.edgeMat.color.copy(EDGE);
-    for (const e of edgeObjs) if (e.userData.clipMat) e.userData.clipMat.color.copy(EDGE);
+    const ec = realNow ? EDGE_R : EDGE;
+    stage.edgeMat.color.copy(ec);
+    for (const e of edgeObjs) if (e.userData.clipMat) e.userData.clipMat.color.copy(ec);
   };
 }
 
@@ -338,6 +393,7 @@ hero.onFrame = v => {
   const a = HERO_FRONT + Math.sin(heroT * Math.PI * 2 / 50) * 0.14;
   fitBox(v.camera, v.w, v.h, box, HERO_FRONT, a, 0.5);
   if (doorMat) doorMat.emissiveIntensity = .5;
+  swapReal(false); if (bus) bus.setX(null);
   if (!heroGlow) { heroGlow = true; glowAt(v, heroSec); }
 };
 hero.update = dt => {
@@ -355,6 +411,7 @@ why.onFrame = v => {
   fitBox(v.camera, v.w, v.h, { cx: v.w / 2, cy: v.h * .5, w: v.w * .94, h: v.h * .78 }, 0.46, 0.46 - luz * .1, 0.3);
   v.state.lamp = luz;
   if (doorMat) doorMat.emissiveIntensity = luz * .5;
+  swapReal(false); if (bus) bus.setX(null);
   if (!whyGlow) { whyGlow = true; glowAt(v, whySec); }
 };
 const knob = $('#knob'), slide = $('#slide'), paneDark = $('.pane-dark'), paneLit = $('.pane-lit');
@@ -421,6 +478,7 @@ const SHOTS = {
   sos: { tgt: V(5, 22, -17), az: 0.62, el: 0.5, r: 27 },
   door: { tgt: V(-7, 23, -12), az: 0.22, el: 0.2, r: 19 },
   route: { tgt: V(6, 19, -3), az: 0.45, el: 0.42, r: 36 },
+  oled: { tgt: V(-21.9, 27.3, -20.39), az: 1.36, el: 0.22, r: 2.3 },
   bars: { tgt: V(-5, 24, -12), az: -0.24, el: 0.26, r: 31 },
 };
 const cam = { tgt: HOME.tgt.clone(), az: HOME.az - .5, el: HOME.el, r: HOME.r, goal: HOME, vel: 0, drag: false };
@@ -431,14 +489,19 @@ function fitDist(c, r) {
 function shoot(shot) { cam.goal = { ...shot, tgt: shot.tgt.clone() }; cam.vel = 0; invalidate(ctl); }
 
 const C = { night: 1, lamp: 1, door: 0, bars: 0, roof: 0 };     // metas (0 o 1)
-let sosT = -1, busT = -1, ledPhase = '', denyT = 0;
-const SOS_DUR = 6, BUS = { in: 1.7, wait: 2.8, out: 1.5 };
+let sosT = -1, busT = -1, busPhase = '', busMark = 0, busX = null, roofTmp = 0, mapClose = false;
+const SOS_DUR = 6, BUS = { in: 2.1, zoom: 1.5, map: 7, out: 1.9, far: 64 };
+const mapEl = $('#map'), panel = $('.panel');
+function showMap(on) { panel.classList.toggle('mapping', on); mapEl.tabIndex = on ? 0 : -1; }
+mapEl.addEventListener('click', () => { mapClose = true; invalidate(ctl); });
 Object.assign(ctl.state, { night: 1, lamp: 1, dark: 1 });
 ctl.onFrame = v => {
   const c = v.camera;
   c.clearViewOffset(); c.updateProjectionMatrix();
   orbit(c, cam.tgt, cam.az, cam.el, fitDist(c, cam.r));
   if (doorMat) doorMat.emissiveIntensity = v.state.lamp * v.state.night * .5;
+  if (doorMatR) doorMatR.emissiveIntensity = v.state.lamp * v.state.night * .5;
+  swapReal(v.state.real); if (bus) bus.setX(busX);
 };
 const approach = (cur, tgt, rate, dt) => {
   if (reduceMotion) return tgt;
@@ -448,7 +511,7 @@ const approach = (cur, tgt, rate, dt) => {
 ctl.update = (dt, now) => {
   const s = ctl.state;
   let moving = false;
-  const prev = [s.night, s.lamp, s.door, s.bars, s.roof, cam.az, cam.el, cam.r, cam.tgt.x, cam.tgt.y, cam.tgt.z, s.busX, s.sos, s.oled, s.led];
+  const prev = [s.night, s.lamp, s.door, s.bars, s.roof, cam.az, cam.el, cam.r, cam.tgt.x, cam.tgt.y, cam.tgt.z, busX, s.sos, s.oled, s.led];
   // cámara
   if (!cam.drag) {
     if (Math.abs(cam.vel) > .02) { cam.goal.az += cam.vel * dt; cam.az = cam.goal.az; cam.vel *= Math.exp(-4 * dt); }
@@ -465,7 +528,7 @@ ctl.update = (dt, now) => {
   s.night = approach(s.night, C.night, 2.2, dt); s.dark = s.night;
   s.door = approach(s.door, C.door, 3, dt);
   s.bars = approach(s.bars, C.bars, 1.5, dt);
-  s.roof = approach(s.roof, C.roof, 3.5, dt);
+  s.roof = approach(s.roof, Math.max(C.roof, roofTmp), 3.5, dt);
   // SOS: ondas desde el buzzer y la tira LED alternando rojo y azul
   let lamp = C.lamp, led = null;
   if (sosT >= 0) {
@@ -483,36 +546,50 @@ ctl.update = (dt, now) => {
   }
   s.led = led;
   s.lamp = led ? lamp : approach(s.lamp, lamp, 2.6, dt);
-  // camión: entra, se detiene sobre el sensor de color y se va
+  // camión: llega por la derecha, se detiene sobre el sensor de color, la cámara va a la pantalla y aparece el mapa
+  s.busX = null;
   if (busT >= 0) {
     busT += dt;
-    const stop = COLOR.x - 1.2, a = busT;
-    if (a < BUS.in) s.busX = -70 + (stop + 70) * easeOut(a / BUS.in);
-    else if (a < BUS.in + BUS.wait) s.busX = stop;
-    else s.busX = stop + (80 - stop) * easeIn((a - BUS.in - BUS.wait) / BUS.out);
-    const arrived = a >= BUS.in && a < BUS.in + BUS.wait;
-    s.oled = approach(s.oled, arrived ? 1 : 0, 6, dt);
-    if (arrived && ledPhase !== 'bus') { ledPhase = 'bus'; say(4, 'Ruta 2: el sensor leyó su color y la pantalla avisa cuál llegó.'); paint(); }
-    if (a >= BUS.in + BUS.wait + BUS.out) { busT = -1; s.busX = null; s.oled = 0; ledPhase = ''; paint(); }
+    const stop = 33 - bus.length / 2;
+    if (busPhase === 'in') {
+      busX = BUS.far + (stop - BUS.far) * easeOut(clamp(busT / BUS.in));
+      if (busT >= BUS.in) { busPhase = 'oled'; busMark = busT; roofTmp = 1; shoot(SHOTS.oled); say(4, 'El sensor leyó su color: azul.'); paint(); }
+    } else if (busPhase === 'oled') {
+      busX = stop;
+      if (busT - busMark >= BUS.zoom) { busPhase = 'map'; busMark = busT; mapClose = false; showMap(true); say(4, 'Ruta 2: la pantalla de la caseta avisa cuál llegó.'); paint(); }
+    } else if (busPhase === 'map') {
+      busX = stop;
+      if (mapClose || busT - busMark >= BUS.map) { busPhase = 'out'; busMark = busT; showMap(false); roofTmp = 0; shoot(SHOTS.route); paint(); }
+    } else {
+      const k = clamp((busT - busMark) / BUS.out);
+      busX = stop + (-BUS.far - stop) * easeIn(k);
+      if (k >= 1) { busT = -1; busX = null; busPhase = ''; paint(); }
+    }
+    s.oled = approach(s.oled, busPhase === 'oled' || busPhase === 'map' ? 1 : 0, 6, dt);
     moving = true;
-  } else { s.busX = null; s.oled = 0; }
+  } else { busX = null; s.oled = approach(s.oled, 0, 6, dt); }
 
-  const cur = [s.night, s.lamp, s.door, s.bars, s.roof, cam.az, cam.el, cam.r, cam.tgt.x, cam.tgt.y, cam.tgt.z, s.busX, s.sos, s.oled, s.led];
+  const cur = [s.night, s.lamp, s.door, s.bars, s.roof, cam.az, cam.el, cam.r, cam.tgt.x, cam.tgt.y, cam.tgt.z, busX, s.sos, s.oled, s.led];
+  if (cur[11] !== prev[11]) stage.shadowKey = ''; // el camión se movió: su sombra también
   if (cur.some((x, i) => x !== prev[i])) { ctl.dirty = true; moving = true; }
   return moving || cam.drag;
 };
 
-function say(n, text) {
-  status.innerHTML = `<span class="num${n ? '' : ' num-i'}">${n || ic('hand', 16)}</span><p>${text}</p>`;
-  status.classList.remove('pop'); void status.offsetWidth; status.classList.add('pop');
+const NODE_IC = ['hand', 'bulb', 'bell', 'door', 'bus', 'bars'];
+function say(n, text, tone = '') {
+  const node = NODES[n - 1];
+  status.className = 'status' + (tone ? ' ' + tone : '');
+  status.innerHTML = `<span class="st-ic">${ic(NODE_IC[n] || 'hand', 20)}</span><span class="st-tx"><i>${node ? `Nodo ${n}, ${node.name}` : 'Centro de control'}</i><p>${text}</p></span>`;
+  void status.offsetWidth; status.classList.add('pop');
 }
+say(0, 'Toca un mosaico y mira la maqueta.');
 function paint() {
   const st = {
     night: [C.night, C.night ? 'Activada' : 'Desactivada'],
     lamp: [C.lamp, C.lamp ? 'Encendida' : 'Apagada'],
     sos: [sosT >= 0, sosT >= 0 ? 'Alerta activa' : 'Pedir ayuda'],
     door: [C.door, C.bars ? 'Bloqueada' : C.door ? 'Abierta' : 'Usar tarjeta'],
-    bus: [busT >= 0, busT < 0 ? 'Llamar ruta' : ledPhase === 'bus' ? 'Ruta 2 llegó' : 'En camino'],
+    bus: [busT >= 0, busT < 0 ? 'Llamar ruta' : busPhase === 'in' ? 'En camino' : busPhase === 'out' ? 'Se va' : 'Ruta 2 llegó'],
     bars: [C.bars, C.bars ? 'Arriba' : 'Abajo'],
   };
   for (const k in st) {
@@ -541,12 +618,12 @@ const ACT = {
   sos() {
     if (sosT >= 0) { sosT = -1; say(2, 'Alerta cancelada.'); return; }
     sosT = 0;
-    say(2, 'Auxilio: suena el buzzer y la tira LED alterna rojo y azul.');
+    say(2, 'Auxilio: suena el buzzer y la tira LED alterna rojo y azul.', 'alert');
     shoot(SHOTS.sos);
   },
   door() {
     if (C.bars) {
-      say(3, 'Acceso denegado: con los barrotes arriba la puerta no abre.');
+      say(3, 'Acceso denegado: con los barrotes arriba la puerta no abre.', 'alert');
       tiles.door.classList.remove('deny'); void tiles.door.offsetWidth; tiles.door.classList.add('deny');
       if (navigator.vibrate) navigator.vibrate(60);
       shoot(SHOTS.door);
@@ -557,15 +634,15 @@ const ACT = {
     shoot(SHOTS.door);
   },
   bus() {
-    if (busT >= 0) return;
-    busT = 0; ledPhase = '';
+    if (busT >= 0) { if (busPhase === 'map') mapClose = true; return; }
+    busT = 0; busPhase = 'in'; busX = BUS.far;
     say(4, 'Llega un camión a la parada.');
     shoot(SHOTS.route);
   },
   bars() {
     C.bars = C.bars ? 0 : 1;
     if (C.bars) C.door = 0;
-    say(5, C.bars ? 'Barrotes arriba: la puerta se bloquea y la tira LED da la alerta.' : 'Barrotes abajo: la puerta vuelve a abrir con tarjeta.');
+    say(5, C.bars ? 'Barrotes arriba: la puerta se bloquea y la tira LED da la alerta.' : 'Barrotes abajo: la puerta vuelve a abrir con tarjeta.', C.bars ? 'alert' : '');
     shoot(SHOTS.bars);
   },
 };
@@ -582,6 +659,13 @@ roofBtn.addEventListener('click', () => {
   invalidate(ctl);
 });
 $('#homeBtn').addEventListener('click', () => shoot(HOME));
+const realBtn = $('#realBtn');
+realBtn.addEventListener('click', () => {
+  const on = ctl.state.real = !ctl.state.real;
+  realBtn.setAttribute('aria-pressed', on);
+  say(0, on ? 'Materiales reales: madera, como la maqueta física.' : 'Maqueta en azul SafeWait.');
+  invalidate(ctl);
+});
 // desde "Por qué": muestra el nodo elegido en la maqueta y resalta su mosaico
 const NODE_TILE = { light: 'lamp', sos: 'sos', door: 'door', route: 'bus', bars: 'bars' };
 function focusNode(key) {
@@ -656,7 +740,8 @@ if (stage) {
 if (params.has('stand')) {
   let idle;
   const restart = () => {
-    Object.assign(C, { night: 1, lamp: 1, door: 0, bars: 0, roof: 0 }); sosT = busT = -1;
+    Object.assign(C, { night: 1, lamp: 1, door: 0, bars: 0, roof: 0 }); sosT = busT = -1; busX = null; busPhase = ''; roofTmp = 0; showMap(false);
+    ctl.state.real = false; realBtn.setAttribute('aria-pressed', 'false');
     roofBtn.setAttribute('aria-pressed', 'false');
     say(0, 'Toca un mosaico y mira la maqueta.'); paint(); shoot(HOME);
     luzTo(0);
