@@ -67,21 +67,14 @@ const fact = ([on, total, pct, big, of, text]) => {
   return `<li class="fact glass"><div class="fact-row"><b>${big}<small>${of}</small></b><p>${text}</p></div><div class="segs" role="img" aria-label="${pct} por ciento">${h}</div></li>`;
 };
 // rutas del nodo 4: el sensor clasifica seis colores (Arduino_Reto_Josue.ino) y cada color es una ruta de la tabla rutas
-const LINES = [
-  ['1', 'Roja', '#ff5a4d', 'M14 40H92L128 76H218L254 112H332'],
-  ['2', 'Azul', '#3d8bff', 'M14 128H70L114 84H232L268 48H332'],
-  ['3', 'Verde', '#35c27a', 'M52 12V48L96 92H250L286 128V156'],
-  ['4', 'Naranja', '#ff9a3d', 'M296 12V34L210 120H128L92 156H14'],
-  ['5', 'Cian', '#2cc9d9', 'M150 12V156'],
-  ['6', 'Morada', '#a875ff', 'M332 146H236L190 100V12'],
-];
-const ends = d => { const n = d.match(/-?\d+(\.\d+)?/g).map(Number); let x = n[0], y = n[1]; const cmds = d.match(/[MHVL][^MHVL]*/g); for (const c of cmds) { const v = c.slice(1).trim().split(/[ ,]+/).map(Number); if (c[0] === 'H') x = v[0]; else if (c[0] === 'V') y = v[0]; else { x = v[0]; y = v[1]; } } return [[n[0], n[1]], [x, y]]; };
-const MAP = `<svg viewBox="0 0 346 168" role="img" aria-label="Mapa simulado de las seis rutas; la Ruta 2, azul, pasa por SafeWait">
-  ${LINES.map(([n, , c, d]) => `<path class="ln${n === '2' ? ' hot' : ''}" d="${d}" stroke="${c}"/>`).join('')}
-  <path class="ln trace" d="${LINES[1][3]}" pathLength="1"/>
-  ${LINES.map(([n, , c, d]) => ends(d).map(([x, y]) => `<g class="bul${n === '2' ? ' hot' : ''}"><circle cx="${x}" cy="${y}" r="9" fill="${c}"/><text x="${x}" y="${y + 4}">${n}</text></g>`).join('')).join('')}
-  <rect class="hub" x="163" y="69" width="18" height="30" rx="9"/><circle class="ping" cx="172" cy="84" r="5"/>
-  <text class="lbl" x="172" y="60">SafeWait</text>
+const LINES = [['1', 'Roja', '#ff6a5e'], ['2', 'Azul', '#4d94ff'], ['3', 'Verde', '#3fca84'], ['4', 'Naranja', '#ffa24d'], ['5', 'Cian', '#39cfe0'], ['6', 'Morada', '#b085ff']];
+const lineD = i => { const y = 18 + i * 26.4, m = 69 + i * 6; return `M30 ${y}H${96 - Math.abs(y - m) * .1}L${96 + Math.abs(y - m)} ${m}H${250 - Math.abs(y - m)}L${250 + Math.abs(y - m) * .1} ${y}H326`; };
+const MAP = `<svg viewBox="0 0 346 168" role="img" aria-label="Mapa simulado de las seis rutas; la Ruta 2, azul, es la que llegó a SafeWait">
+  ${LINES.map(([n, , c], i) => `<path class="ln${n === '2' ? ' hot' : ''}" d="${lineD(i)}" stroke="${c}"/>`).join('')}
+  ${LINES.map(([n, , c], i) => `<g class="bul${n === '2' ? ' hot' : ''}"><circle cx="20" cy="${18 + i * 26.4}" r="10" fill="${c}"/><text x="20" y="${22 + i * 26.4}">${n}</text></g>`).join('')}
+  <rect class="hub" x="164" y="60" width="18" height="48" rx="9"/>
+  <circle class="bus-dot" r="5"><animateMotion dur="2.6s" repeatCount="indefinite" keyPoints="0;0.5;0.5" keyTimes="0;0.7;1" calcMode="spline" keySplines="0.3 0 0.2 1;0 0 1 1" path="${lineD(1)}"/></circle>
+  <text class="lbl" x="173" y="134">SafeWait</text>
 </svg>`;
 
 const app = document.createElement('div');
@@ -113,23 +106,23 @@ app.innerHTML = `
   <section class="scr why" id="porque" data-section="porque">
     <div class="glow" aria-hidden="true"></div>
     <div class="view" id="v-why" role="img" aria-label="Maqueta del paradero a oscuras"><canvas></canvas></div>
-    <div class="why-body">
-      <div class="pane pane-dark">
-        <h2>Esperar el camión de noche da miedo.</h2>
-        <ul class="facts">${FACTS.map(fact).join('')}</ul>
-        <a class="pill glass" href="${SOURCE}" target="_blank" rel="noopener">${ic('ext', 16)}Fuente: INEGI, ENSU 2026</a>
-      </div>
-      <div class="pane pane-lit" inert>
-        <h2>Un paradero que cuida a quien espera.</h2>
-        <ul class="does">${DOES.map(([k, icon, t]) => `<li><a href="#nodos" data-node="${k}"><span class="ico">${ic(icon, 18)}</span>${t}</a></li>`).join('')}</ul>
-      </div>
-    </div>
     <div class="slide glass" id="slide">
       <span class="slide-fill" aria-hidden="true"></span>
       <span class="slide-label slide-off" aria-hidden="true">Desliza para encender la luz</span>
       <span class="slide-label slide-on" aria-hidden="true">Luz encendida</span>
       <span class="slide-chev" aria-hidden="true">${ic('chev', 24)}</span>
       <button type="button" class="knob" id="knob" role="switch" aria-checked="false" aria-label="Encender la luz">${ic('bulb', 24)}</button>
+    </div>
+    <div class="why-body">
+      <div class="pane pane-dark">
+        <h2>Esperar el camión de noche da miedo.</h2>
+        <ul class="facts">${FACTS.map(fact).join('')}</ul>
+        <a class="pill" href="${SOURCE}" target="_blank" rel="noopener">${ic('ext', 16)}Fuente: INEGI, ENSU 2026</a>
+      </div>
+      <div class="pane pane-lit" inert>
+        <h2>Un paradero que cuida a quien espera.</h2>
+        <ul class="does">${DOES.map(([k, icon, t]) => `<li><a href="#nodos" data-node="${k}"><span class="ico">${ic(icon, 18)}</span>${t}</a></li>`).join('')}</ul>
+      </div>
     </div>
   </section>
 
@@ -282,8 +275,8 @@ if (stage) {
     shelf.color.setHex(real ? 0xd8bf96 : TONE.floor);
     for (const m of doorSync.mats) m.color.setHex(real ? 0x2b2320 : 0x162660);
   };
-  // camión del video: llega por la derecha, hacia −x, y solo se dibuja sobre la maqueta
-  bus = makeBus({ mirror: true, route: '2  RANCHO IOT' });
+  // camión del video: llega por la derecha, hacia −x; la toma de la ruta deja los bordes de la maqueta fuera de cuadro
+  bus = makeBus({ clipX: 1e5, mirror: true, route: '2  RANCHO IOT' });
   bus.group.position.set(0, CAD.baseTop, CAD.streetZ);
   bus.group.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   stage.root.add(bus.group);
@@ -477,20 +470,27 @@ const SHOTS = {
   light: { tgt: V(-5, 23, -12), az: 0.42, el: 0.3, r: 30 },
   sos: { tgt: V(5, 22, -17), az: 0.62, el: 0.5, r: 27 },
   door: { tgt: V(-7, 23, -12), az: 0.22, el: 0.2, r: 19 },
-  route: { tgt: V(6, 19, -3), az: 0.45, el: 0.42, r: 36 },
+  route: { tgt: V(4, 20, -3), az: 0.12, el: 0.36, r: 22 },
   oled: { tgt: V(-21.9, 27.3, -20.39), az: 1.36, el: 0.22, r: 2.3 },
   bars: { tgt: V(-5, 24, -12), az: -0.24, el: 0.26, r: 31 },
 };
-const cam = { tgt: HOME.tgt.clone(), az: HOME.az - .5, el: HOME.el, r: HOME.r, goal: HOME, vel: 0, drag: false };
+const cam = { tgt: HOME.tgt.clone(), az: HOME.az - .5, el: HOME.el, r: HOME.r, goal: HOME, vel: 0, drag: false, k: 0, dur: 1.8, from: { tgt: HOME.tgt.clone(), az: HOME.az - .5, el: HOME.el, r: HOME.r } };
+const inOut = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 function fitDist(c, r) {
   const v = THREE.MathUtils.degToRad(c.fov) / 2, h = Math.atan(Math.tan(v) * c.aspect);
   return r / Math.sin(Math.min(v, h));
 }
-function shoot(shot) { cam.goal = { ...shot, tgt: shot.tgt.clone() }; cam.vel = 0; invalidate(ctl); }
+// viaje de cámara: de donde está al encuadre, con arranque y llegada suaves (el acercamiento va en escala logarítmica)
+function shoot(shot, dur = 1.5) {
+  cam.goal = { ...shot, tgt: shot.tgt.clone() };
+  cam.from = { tgt: cam.tgt.clone(), az: cam.az, el: cam.el, r: cam.r };
+  cam.k = 0; cam.dur = dur; cam.vel = 0; invalidate(ctl);
+}
+function holdCam() { cam.k = 1; cam.goal = { tgt: cam.tgt.clone(), az: cam.az, el: cam.el, r: cam.r }; }
 
 const C = { night: 1, lamp: 1, door: 0, bars: 0, roof: 0 };     // metas (0 o 1)
 let sosT = -1, busT = -1, busPhase = '', busMark = 0, busX = null, roofTmp = 0, mapClose = false;
-const SOS_DUR = 6, BUS = { in: 2.1, zoom: 1.5, map: 7, out: 1.9, far: 64 };
+const SOS_DUR = 6, BUS = { in: 2.6, zoom: 2.3, map: 7, out: 2.4, far: 82, stop: 15 };
 const mapEl = $('#map'), panel = $('.panel');
 function showMap(on) { panel.classList.toggle('mapping', on); mapEl.tabIndex = on ? 0 : -1; }
 mapEl.addEventListener('click', () => { mapClose = true; invalidate(ctl); });
@@ -514,15 +514,14 @@ ctl.update = (dt, now) => {
   const prev = [s.night, s.lamp, s.door, s.bars, s.roof, cam.az, cam.el, cam.r, cam.tgt.x, cam.tgt.y, cam.tgt.z, busX, s.sos, s.oled, s.led];
   // cámara
   if (!cam.drag) {
-    if (Math.abs(cam.vel) > .02) { cam.goal.az += cam.vel * dt; cam.az = cam.goal.az; cam.vel *= Math.exp(-4 * dt); }
-    else {
-      cam.vel = 0;
-      cam.az = approach(cam.az, cam.goal.az, 4.5, dt);
-    }
-    cam.el = approach(cam.el, cam.goal.el, 4.5, dt);
-    cam.r = approach(cam.r, cam.goal.r, 4.5, dt);
-    if (reduceMotion) cam.tgt.copy(cam.goal.tgt); else cam.tgt.lerp(cam.goal.tgt, Math.min(1, dt * 4.5));
-    if (cam.tgt.distanceTo(cam.goal.tgt) < .02) cam.tgt.copy(cam.goal.tgt);
+    if (cam.k < 1) {
+      cam.k = reduceMotion ? 1 : Math.min(1, cam.k + dt / cam.dur);
+      const e = inOut(cam.k), f = cam.from, g = cam.goal;
+      cam.az = f.az + (g.az - f.az) * e; cam.el = f.el + (g.el - f.el) * e;
+      cam.r = Math.exp(Math.log(f.r) + (Math.log(g.r) - Math.log(f.r)) * e);
+      cam.tgt.lerpVectors(f.tgt, g.tgt, e);
+    } else if (Math.abs(cam.vel) > .02) { cam.goal.az += cam.vel * dt; cam.az = cam.goal.az; cam.vel *= Math.exp(-4 * dt); }
+    else cam.vel = 0;
   }
   // piezas
   s.night = approach(s.night, C.night, 2.2, dt); s.dark = s.night;
@@ -550,16 +549,16 @@ ctl.update = (dt, now) => {
   s.busX = null;
   if (busT >= 0) {
     busT += dt;
-    const stop = 33 - bus.length / 2;
+    const stop = BUS.stop;
     if (busPhase === 'in') {
       busX = BUS.far + (stop - BUS.far) * easeOut(clamp(busT / BUS.in));
-      if (busT >= BUS.in) { busPhase = 'oled'; busMark = busT; roofTmp = 1; shoot(SHOTS.oled); say(4, 'El sensor leyó su color: azul.'); paint(); }
+      if (busT >= BUS.in) { busPhase = 'oled'; busMark = busT; roofTmp = 1; shoot(SHOTS.oled, 2.2); say(4, 'El sensor leyó su color: azul.'); paint(); }
     } else if (busPhase === 'oled') {
       busX = stop;
       if (busT - busMark >= BUS.zoom) { busPhase = 'map'; busMark = busT; mapClose = false; showMap(true); say(4, 'Ruta 2: la pantalla de la caseta avisa cuál llegó.'); paint(); }
     } else if (busPhase === 'map') {
       busX = stop;
-      if (mapClose || busT - busMark >= BUS.map) { busPhase = 'out'; busMark = busT; showMap(false); roofTmp = 0; shoot(SHOTS.route); paint(); }
+      if (mapClose || busT - busMark >= BUS.map) { busPhase = 'out'; busMark = busT; showMap(false); roofTmp = 0; shoot(SHOTS.route, 2); paint(); }
     } else {
       const k = clamp((busT - busMark) / BUS.out);
       busX = stop + (-BUS.far - stop) * easeIn(k);
@@ -685,7 +684,7 @@ paint();
     const dx = e.clientX - d.x;
     if (!d.on) {
       if (Math.abs(dx) < 6) return;
-      d.on = true; cam.drag = true; d.x = e.clientX; d.az = cam.az; d.lx = e.clientX; d.lt = performance.now();
+      d.on = true; cam.drag = true; holdCam(); d.x = e.clientX; d.az = cam.az; d.lx = e.clientX; d.lt = performance.now();
       try { el.setPointerCapture(e.pointerId); } catch { /* sin captura también funciona */ }
       return;
     }
@@ -732,7 +731,6 @@ if (stage) {
     stage.assemble();
     document.documentElement.classList.add('model-ready');
     layout(); invalidate();
-    if (!reduceMotion) cam.az = HOME.az - .5; // al llegar a Nodos la maqueta termina de girar: se nota que se puede mover
   }).catch(err => { console.error(err); no3D(); });
 }
 
