@@ -50,6 +50,8 @@ PORT=3000 npm start
 - `index.html`: secciones y textos fijos.
 - `src/content.js`: nodos, equipo y configuración.
 - `src/scene.js`: escena 3D (un solo renderer que dibuja en el hero, en Cómo funciona y en Explóralo tú), materiales, armado, camión.
-- `src/main.js`: scroll guiado, visor, QR, modo stand.
+- `src/main.js`: elige la versión según el ancho de pantalla (`?movil` y `?escritorio` la fuerzan).
+- `src/escritorio.js` y `src/style.css`: versión de escritorio (scroll guiado, visor, modo stand).
+- `src/movil.js` y `src/movil.css`: versión de celular (hasta 820 px): cuatro paradas con interfaz de vidrio. Cada parada dibuja la maqueta en su propio lienzo y solo cuando algo cambia.
+- `src/detail.js` y `src/fx.js`: detalles de la maqueta (pinitos, banca, keypad, puertas con retícula); los usan el video y la versión de celular.
 - `src/route.js`: línea de ruta que se dibuja con el scroll.
-- `src/style.css`: estilos.

@@ -1,7 +1,7 @@
 // Detalles de la maqueta real que el CAD no trae: keypad de membrana, puertas con retícula, banca y pinitos.
-// Solo para el video. Unidades en cm, mismas coordenadas que scene.js.
+// Los usan el video y la versión de celular de la landing. Unidades en cm, mismas coordenadas que scene.js.
 import * as THREE from 'three';
-import { CAD } from '../src/scene.js';
+import { CAD } from './scene.js';
 import { makeWave } from './fx.js';
 
 const SWEEP = new THREE.Vector3(0.45, -1, 0.3).normalize();   // el mismo barrido del armado de scene.js

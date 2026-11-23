@@ -52,7 +52,8 @@ export const ANCHORS = {
 
 export function defaultState() {
   // lamp: luz LED de la caseta (null = sigue a night). dark: la página detrás está oscura (aristas más tenues).
-  return { night: 0, door: 0, bars: 0, roof: 0, xray: 0, real: false, busX: null, sos: 0, oled: 0, hl: null, plinth: true, lamp: null, dark: 0 };
+  // led: color de la tira LED (hex) cuando da una alerta; null = su azul de siempre.
+  return { night: 0, door: 0, bars: 0, roof: 0, xray: 0, real: false, busX: null, sos: 0, oled: 0, hl: null, plinth: true, lamp: null, dark: 0, led: null };
 }
 
 /* ---------- texturas generadas ---------- */
@@ -67,7 +68,8 @@ function canvasTex(w, h, draw, aniso) {
 const rnd = (a, b) => a + Math.random() * (b - a);
 
 export class Stage {
-  constructor(canvas, { mobile = false, reduceMotion = false } = {}) {
+  // offscreen: el lienzo WebGL no se muestra; cada vista se dibuja con draw() y se copia a un lienzo 2D propio (celular)
+  constructor(canvas, { mobile = false, reduceMotion = false, offscreen = false, dpr = null } = {}) {
     this.canvas = canvas;
     this.reduceMotion = reduceMotion;
     this.views = [];
@@ -75,9 +77,13 @@ export class Stage {
     this.asm = { t: -1, dur: 2.5 };
 
     const r = this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
-    r.setPixelRatio(Math.min(window.devicePixelRatio || 1, mobile ? 1.75 : 2));
+    this.offscreen = offscreen;
+    this.dpr = dpr ?? Math.min(window.devicePixelRatio || 1, mobile ? 1.75 : 2);
+    this.bufW = this.bufH = 0; this.shadowKey = '';
+    r.setPixelRatio(offscreen ? 1 : this.dpr);
     r.setClearColor(0xffffff, 0);
     r.shadowMap.enabled = true;
+    if (offscreen) r.shadowMap.autoUpdate = false; // las sombras solo se recalculan cuando se mueve una pieza
     r.shadowMap.type = THREE.PCFShadowMap; // r187 cambia PCFSoft por PCF en la primera sombra; fijarlo evita recompilar a media animación
     r.toneMapping = THREE.ACESFilmicToneMapping;
     r.toneMappingExposure = 1.0;
@@ -96,7 +102,7 @@ export class Stage {
     this.#materials();
     this.#extras();
     this.#bus();
-    this.resize();
+    if (!offscreen) this.resize();
   }
 
   /* ---------- luces y piso ---------- */
@@ -579,6 +585,9 @@ export class Stage {
     this.hemi.color.setRGB(1 - .35 * n - .2 * dk, 1 - .25 * n - .1 * dk, 1);
     const lamp = s.lamp ?? n;
     M.led.emissiveIntensity = lamp * 3.2;
+    M.led.emissive.setHex(s.led ?? 0x3d8fe0);
+    const ledHex = s.led ?? 0x7fb6ff;
+    this.ledLights.forEach(l => l.color.setHex(ledHex)); this.spill.color.setHex(ledHex);
     // pantalla OLED: se prende cuando el camión está en el paradero (antes de copiar emisión a los clones del armado)
     this.oledMat.emissiveIntensity = 0.06 + 1.6 * s.oled;
     this.ledLights.forEach(l => { l.intensity = lamp * 90; });
@@ -674,6 +683,31 @@ export class Stage {
     const p = v.clone().project(view.camera);
     out.x = (p.x * .5 + .5) * view.rect.width; out.y = (-p.y * .5 + .5) * view.rect.height; out.behind = p.z > 1;
     return out;
+  }
+
+  /* Modo offscreen: avanza el armado (una vez por cuadro) y dibuja una vista en un lienzo 2D de w × h px CSS. */
+  step(dt) { this.#updateAssembly(dt); }
+  draw(view, target, w, h, now = 0, dt = 0) {
+    if (!this.ready || w < 2 || h < 2) return;
+    const r = this.renderer, pw = Math.round(w * this.dpr), ph = Math.round(h * this.dpr);
+    if (pw > this.bufW || ph > this.bufH) {
+      this.bufW = Math.max(this.bufW, pw); this.bufH = Math.max(this.bufH, ph);
+      r.setSize(this.bufW, this.bufH, false);
+    }
+    view.rect = { left: 0, top: 0, width: w, height: h };
+    view.camera.aspect = w / h; view.camera.updateProjectionMatrix();
+    view.onFrame && view.onFrame(view, now, dt);
+    view.camera.updateMatrixWorld();
+    const s = view.state;
+    this.#apply(s);
+    const key = [s.bars, s.door, s.roof, s.busX, s.plinth, this.asm.done ? 1 : this.asm.t].join();
+    if (key !== this.shadowKey) { this.shadowKey = key; r.shadowMap.needsUpdate = true; }
+    r.setViewport(0, 0, pw, ph); r.setScissor(0, 0, pw, ph); r.setScissorTest(true);
+    r.clear(); r.render(this.scene, view.camera);
+    if (target.width !== pw || target.height !== ph) { target.width = pw; target.height = ph; }
+    const g = target.getContext('2d');
+    g.clearRect(0, 0, pw, ph);
+    g.drawImage(this.canvas, 0, this.bufH - ph, pw, ph, 0, 0, pw, ph); // el viewport de WebGL nace abajo a la izquierda
   }
 
   render(now, dt) {
