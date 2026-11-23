@@ -420,7 +420,8 @@ export class Stage {
 
   /* ---------- modelo CAD ---------- */
   async load(url) {
-    const gltf = await new GLTFLoader().loadAsync(url);
+    // url: ruta del GLB, o su contenido ya descargado (ArrayBuffer)
+    const gltf = url instanceof ArrayBuffer ? await new GLTFLoader().parseAsync(url, '') : await new GLTFLoader().loadAsync(url);
     const model = this.model = gltf.scene;
     model.scale.setScalar(100);           // metros → centímetros
     model.updateMatrixWorld(true);

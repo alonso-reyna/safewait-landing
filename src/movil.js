@@ -143,7 +143,7 @@ app.innerHTML = `
     </div>
   </section>
 </main>`;
-[...document.body.children].forEach(n => { if (n.tagName !== 'SCRIPT') n.remove(); });
+[...document.body.children].forEach(n => { if (!/^(SCRIPT|STYLE|LINK)$/.test(n.tagName)) n.remove(); });
 document.body.prepend(app);
 const themeMeta = $('meta[name="theme-color"]');
 const setTheme = light => {
@@ -641,7 +641,8 @@ if (stage) {
     logoImg.decode().catch(() => null),
     document.fonts ? Promise.all([document.fonts.load('600 100px "Inter Tight Variable"'), document.fonts.load('500 40px "Inter Variable"')]).catch(() => null) : null,
   ]);
-  stage.load('/models/safewait.glb').then(async () => {
+  // window.__swModel: el GLB ya descargado, para alojamientos que no sirven archivos .glb (la copia de revisión)
+  Promise.resolve(window.__swModel || '/models/safewait.glb').then(m => stage.load(m)).then(async () => {
     await Promise.race([fonts, new Promise(r => setTimeout(r, 1200))]);
     stage.drawLogos(logoImg.complete && logoImg.naturalWidth ? logoImg : null);
     stage.assemble();
