@@ -582,7 +582,7 @@ const NODE_IC = ['hand', 'bulb', 'bell', 'door', 'bus', 'bars'];
 function say(n, text, tone = '') {
   const node = NODES[n - 1];
   status.className = 'status' + (tone ? ' ' + tone : '');
-  status.innerHTML = `<span class="st-ic">${ic(NODE_IC[n] || 'hand', 20)}</span><span class="st-tx"><i>${node ? `Nodo ${n}, ${node.name}` : 'Centro de control'}</i><p>${text}</p></span>`;
+  status.innerHTML = `<span class="st-ic">${ic(NODE_IC[n] || 'hand', 20)}</span><span class="st-tx"><i>${node ? `Nodo ${n}: ${node.name}` : 'Centro de control'}</i><p>${text}</p></span>`;
   void status.offsetWidth; status.classList.add('pop');
 }
 say(0, 'Toca un mosaico y mira la maqueta.');
