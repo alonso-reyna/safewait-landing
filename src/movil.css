@@ -189,14 +189,11 @@ html.model-ready .loading, html.no-3d .loading { display: none; }
 .map-head i { display: block; font: 500 12.5px/16px var(--f-body); font-style: normal; color: var(--txt-2); }
 .map-x { margin-left: auto; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, .12); }
 .map svg { flex: 1; min-height: 0; width: 100%; }
-.map .ln { fill: none; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; opacity: .32; }
-.map .ln.hot { opacity: 1; stroke-width: 6; }
-.map .bul { opacity: .45; }
-.map .bul.hot { opacity: 1; }
-.map .bul text { fill: #fff; font: 700 11px var(--f-body); text-anchor: middle; }
-.map .hub { fill: #fff; }
-.map .bus-dot { fill: #fff; stroke: #4d94ff; stroke-width: 3; }
-.map .lbl { fill: #fff; font: 600 13px var(--f-head); text-anchor: middle; }
+.map .ln { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.map .dim { opacity: .34; }
+.map .num { fill: #fff; font: 700 11px var(--f-body); text-anchor: middle; }
+.map .lbl { fill: #fff; font: 600 12.5px var(--f-head); text-anchor: middle; }
+.map .sub { fill: var(--txt-2); font: 500 11px var(--f-body); text-anchor: end; }
 .tiles { margin-top: 12px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .tile {
   height: 98px; padding: 12px; border-radius: 24px; border: 1px solid rgba(255, 255, 255, .18); background: rgba(255, 255, 255, .1); color: #fff;

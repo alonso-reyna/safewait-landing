@@ -67,14 +67,18 @@ const fact = ([on, total, pct, big, of, text]) => {
   return `<li class="fact glass"><div class="fact-row"><b>${big}<small>${of}</small></b><p>${text}</p></div><div class="segs" role="img" aria-label="${pct} por ciento">${h}</div></li>`;
 };
 // rutas del nodo 4: el sensor clasifica seis colores (Arduino_Reto_Josue.ino) y cada color es una ruta de la tabla rutas
-const LINES = [['1', 'Roja', '#ff6a5e'], ['2', 'Azul', '#4d94ff'], ['3', 'Verde', '#3fca84'], ['4', 'Naranja', '#ffa24d'], ['5', 'Cian', '#39cfe0'], ['6', 'Morada', '#b085ff']];
-const lineD = i => { const y = 18 + i * 26.4, m = 69 + i * 6; return `M30 ${y}H${96 - Math.abs(y - m) * .1}L${96 + Math.abs(y - m)} ${m}H${250 - Math.abs(y - m)}L${250 + Math.abs(y - m) * .1} ${y}H326`; };
-const MAP = `<svg viewBox="0 0 346 168" role="img" aria-label="Mapa simulado de las seis rutas; la Ruta 2, azul, es la que llegó a SafeWait">
-  ${LINES.map(([n, , c], i) => `<path class="ln${n === '2' ? ' hot' : ''}" d="${lineD(i)}" stroke="${c}"/>`).join('')}
-  ${LINES.map(([n, , c], i) => `<g class="bul${n === '2' ? ' hot' : ''}"><circle cx="20" cy="${18 + i * 26.4}" r="10" fill="${c}"/><text x="20" y="${22 + i * 26.4}">${n}</text></g>`).join('')}
-  <rect class="hub" x="164" y="60" width="18" height="48" rx="9"/>
-  <circle class="bus-dot" r="5"><animateMotion dur="2.6s" repeatCount="indefinite" keyPoints="0;0.5;0.5" keyTimes="0;0.7;1" calcMode="spline" keySplines="0.3 0 0.2 1;0 0 1 1" path="${lineD(1)}"/></circle>
-  <text class="lbl" x="173" y="134">SafeWait</text>
+const LC = { 1: '#ff6a5e', 2: '#4d94ff', 3: '#3fca84' };
+const bul = (x, y, n) => `<circle cx="${x}" cy="${y}" r="10" fill="${LC[n]}"/><text class="num" x="${x}" y="${y + 4}">${n}</text>`;
+const stn = (x, y) => `<circle cx="${x}" cy="${y}" r="5" fill="#0b1433" stroke="${LC[2]}" stroke-width="3"/>`;
+// plano tipo metro: la ruta que llegó y dos vecinas. Cada línea va en un grupo con su círculo, así la transparencia no marca el empalme
+const MAP = `<svg viewBox="0 0 346 168" role="img" aria-label="Mapa simulado de rutas; la Ruta 2, azul, es la que llegó a SafeWait">
+  <g class="dim"><path class="ln" stroke="${LC[1]}" stroke-width="7" d="M22 34H104L140 70H206L246 110H326"/>${bul(22, 34, 1)}</g>
+  <g class="dim"><path class="ln" stroke="${LC[3]}" stroke-width="7" d="M70 150V118L98 90H250L286 126V156"/>${bul(70, 150, 3)}</g>
+  <path class="ln" stroke="${LC[2]}" stroke-width="8" d="M22 126H88L134 80H232L266 46H322"/>
+  ${stn(88, 126)}${stn(232, 80)}${bul(22, 126, 2)}${bul(322, 46, 2)}
+  <rect x="164" y="60" width="18" height="40" rx="9" fill="#fff"/>
+  <text class="lbl" x="173" y="52">SafeWait</text>
+  <text class="sub" x="322" y="26">Rancho IoT</text>
 </svg>`;
 
 const app = document.createElement('div');
