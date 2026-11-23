@@ -101,8 +101,8 @@ app.innerHTML = `
     <div class="card glass">
       <p>Un paradero inteligente, seguro y funcional.</p>
       <div class="card-row">
-        <a class="btn btn-w" href="#nodos">${ic('nodes', 20)}Ver los 5 nodos</a>
-        <a class="btn glass" href="#porque">${ic('moon', 18)}El problema</a>
+        <a class="btn btn-w" href="#porque">${ic('moon', 18)}El problema</a>
+        <a class="btn glass" href="#nodos">${ic('nodes', 20)}Ver los 5 nodos</a>
       </div>
     </div>
   </section>
