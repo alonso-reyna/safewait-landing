@@ -27,13 +27,13 @@ export class Route {
     if (!wrap) return;
     const x = this.x = wrap.getBoundingClientRect().left + (mobile ? 19 : 40);
 
-    // paradas: etiquetas de cada sección (la de "Cómo funciona" se mide relativa a su contenedor fijo)
+    // paradas: etiquetas de cada sección (las que viven en una escena fija se miden relativas a su contenedor)
     const labels = [...document.querySelectorAll('.stop-label')];
     this.stops = labels.map(l => {
       const sec = l.closest('[data-section]');
       let y;
-      if (sec === this.howEl) {
-        const sticky = l.closest('.how-sticky');
+      const sticky = l.closest('.how-sticky, .prob-sticky');
+      if (sticky) {
         y = sec.getBoundingClientRect().top + sy + (l.getBoundingClientRect().top - sticky.getBoundingClientRect().top) + l.offsetHeight / 2;
       } else y = l.getBoundingClientRect().top + sy + l.offsetHeight / 2;
       return { y, id: sec.dataset.section };

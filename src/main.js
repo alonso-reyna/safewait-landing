@@ -202,6 +202,71 @@ $$('#howStops li').forEach(li => li.addEventListener('click', () => {
   scrollToY(window.scrollY + r.top + total * ((+li.dataset.i + 0.62) / 5), 1.4);
 }));
 
+/* Problema y solución: la página anochece, la caseta enciende su luz y esa luz abre la vista de la solución.
+   Todo sale del avance del scroll dentro de la sección (0 a 1). */
+const probEl = $('#problema'), nightEl = $('#night');
+const probView = addView($('#view-problem'));
+probView.state.plinth = false;
+const PROB_LIGHT = V(ANCHORS.light.x, ANCHORS.light.y - 5, ANCHORS.light.z + 6); // centro de la caseta: de ahí sale la luz
+const PROB_ANGLE = 0.46, PROB_EL = 0.3;
+const seg = (p, a, b) => clamp((p - a) / (b - a));
+const probText = $$('.prob-panel h2, .prob-facts, .prob-does');
+const prob = { p: 0, lamp: 0, open: 0, cx: null, cy: null, phase: 'night' };
+function probCalc() {
+  const r = probEl.getBoundingClientRect();
+  const p = prob.p = clamp(-r.top / (r.height - window.innerHeight));
+  if (reduceMotion) { prob.lamp = prob.open = p >= .5 ? 1 : 0; }
+  else { prob.lamp = ease(seg(p, .28, .46)); prob.open = seg(p, .5, .78); }
+  const phase = reduceMotion ? (p < .5 ? 'night' : 'day') : p < .47 ? 'night' : p >= .7 ? 'day' : 'turn';
+  if (phase !== prob.phase) probEl.dataset.phase = prob.phase = phase;
+}
+probView.onFrame = v => {
+  const c = v.camera, W = v.rect.width, H = v.rect.height;
+  // escritorio: la maqueta va a la derecha del texto; celular: ocupa el bloque de arriba
+  let box;
+  if (isMobile()) box = { cx: W / 2, cy: H * .56, w: W * .98, h: H * .84 };
+  else {
+    const x1 = Math.max(...probText.map(e => e.getBoundingClientRect().right)) - v.rect.left + W * .035, x2 = W - Math.max(40, W * .045);
+    box = { cx: (x1 + x2) / 2, cy: H * .53, w: x2 - x1, h: H * .6 };
+  }
+  c.clearViewOffset(); c.updateProjectionMatrix();
+  heroOrbit(c, PROB_ANGLE, PROB_EL, 260);
+  let m = heroBox(c, W, H);
+  const d = 260 * Math.max(m.w / box.w, m.h / box.h);
+  heroOrbit(c, PROB_ANGLE, PROB_EL, d);
+  m = heroBox(c, W, H);
+  c.setViewOffset(W, H, m.cx - box.cx, m.cy - box.cy, W, H); c.updateProjectionMatrix();
+  heroOrbit(c, PROB_ANGLE - (reduceMotion ? 0 : prob.p * .1), PROB_EL, d);
+  const s = v.state;
+  s.night = 1 - prob.open; s.lamp = prob.lamp; s.dark = 1 - prob.open;
+  const q = stage.project(v, PROB_LIGHT);
+  prob.cx = v.rect.left + q.x; prob.cy = v.rect.top + q.y;
+};
+function probPaint() {
+  const r = probEl.getBoundingClientRect(), H = window.innerHeight, W = document.documentElement.clientWidth;
+  const band = H * .42; // alto del atardecer que entra antes que la sección
+  const on = r.top - band < H && r.bottom > 0 && prob.open < 1;
+  nightEl.classList.toggle('on', on);
+  let dark = false;
+  if (on) {
+    const st = nightEl.style, mob = isMobile();
+    const cx = prob.cx ?? W * (mob ? .5 : .7), cy = prob.cy ?? H * (mob ? .3 : .5);
+    const maxD = Math.hypot(Math.max(cx, W - cx), Math.max(cy, H - cy));
+    const ro = prob.open * maxD * 1.8, ri = ro * .56;
+    st.setProperty('--y0', (r.top - band).toFixed(1) + 'px'); st.setProperty('--y1', r.top.toFixed(1) + 'px');
+    st.setProperty('--cx', cx.toFixed(1) + 'px'); st.setProperty('--cy', cy.toFixed(1) + 'px');
+    st.setProperty('--ri', ri.toFixed(1) + 'px'); st.setProperty('--ro', ro.toFixed(1) + 'px');
+    st.setProperty('--glow', (prob.lamp * (1 - prob.open)).toFixed(3));
+    // ¿la noche cubre el encabezado?
+    dark = (30 - (r.top - band)) / band > .6 && cy - 30 > ro * .72;
+  }
+  document.documentElement.classList.toggle('night', dark);
+}
+// la fuente vive en el texto de la noche: si recibe el foco estando oculta, la página regresa a esa vista
+$$('.prob-night a').forEach(a => a.addEventListener('focus', () => {
+  if (prob.phase !== 'night') scrollToY(window.scrollY + probEl.getBoundingClientRect().top, .8);
+}));
+
 /* Explóralo tú: visor con OrbitControls */
 const ctr = new OrbitControls(exView.camera, exView.el);
 ctr.enableDamping = true; ctr.dampingFactor = 0.08;
@@ -351,7 +416,9 @@ let last = performance.now();
 function tick() {
   const now = performance.now();
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  probCalc();
   if (stage) stage.render(now / 1000, dt);
+  probPaint();
   // el paso de Cómo funciona sale del scroll, no del render (así funciona sin 3D)
   const hs = Math.min(4, Math.floor(howProgress() * 5));
   if (hs !== howStep) setHowStep(hs);
@@ -382,15 +449,12 @@ $$('main [data-section]').forEach(sec => {
   });
 });
 
-/* ---------- apariciones y cifras ---------- */
+/* ---------- apariciones ---------- */
 if (!reduceMotion) {
+  // el texto de la noche entra en una sola secuencia cuando la sección llega a media pantalla
+  gsap.from($$('.prob-night > *, .prob-facts li'), { y: 16, opacity: 0, duration: .7, ease: 'power2.out', stagger: .09, scrollTrigger: { trigger: probEl, start: 'top 62%', once: true } });
   $$('.reveal, .section h2, .section .intro, .team-list li, .flow-stops li').forEach(el => {
     gsap.from(el, { y: 18, opacity: 0, duration: .7, ease: 'power2.out', scrollTrigger: { trigger: el, start: 'top 88%', once: true } });
-  });
-  $$('.stat .num').forEach(el => {
-    const to = parseFloat(el.dataset.count), o = { v: 0 };
-    gsap.to(o, { v: to, duration: 1.4, ease: 'power2.out', scrollTrigger: { trigger: el, start: 'top 85%', once: true },
-      onUpdate: () => { el.textContent = o.v.toFixed(1) + ' %'; } });
   });
 }
 // diagrama de tecnología: la línea se dibuja con el scroll

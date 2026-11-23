@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SafeWait, video promocional</title>
+  <style>
+    /* --u: un pixel a 1080 de lado corto; el texto escala igual en 16:9 y 9:16 */
+    :root { --u: calc(min(100vw, 100vh) / 1080); --blue: #267dc0; --navy: #162660; --ink: #162660; --accent: #267dc0; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #fff; }
+    #bg, #night, #glow, #gl, #view { position: fixed; inset: 0; }
+    #night { background: #0b1433; opacity: 0; }
+    #bg { background: #fff; }
+    #glow { opacity: 0; background: radial-gradient(circle at var(--cx, 50%) var(--cy, 50%), rgba(110, 170, 255, .42), rgba(110, 170, 255, .1) 28%, transparent 56%); }
+    #gl { display: block; }
+    #label, #end, #code { position: fixed; opacity: 0; color: var(--ink); }
+    /* rótulo del nodo: discreto, con el nombre entrando detrás de una máscara */
+    #label { left: calc(100 * var(--u)); top: calc(96 * var(--u)); }
+    #label .meta { display: flex; align-items: center; gap: calc(14 * var(--u)); font: 600 calc(20 * var(--u))/1 "Inter Variable", Inter, system-ui, sans-serif; letter-spacing: .2em; font-variant-numeric: tabular-nums; }
+    #label .num { color: var(--accent); }
+    #label .rule { width: calc(46 * var(--u)); height: max(1px, calc(1.5 * var(--u))); background: currentColor; opacity: .32; transform-origin: left; }
+    #label .tot { opacity: .42; }
+    #label .mask { overflow: hidden; margin-top: calc(13 * var(--u)); padding-bottom: calc(10 * var(--u)); }
+    #label .name { display: block; font: 600 calc(66 * var(--u))/1.08 "Inter Tight Variable", "Inter Tight", system-ui, sans-serif; letter-spacing: -.03em; will-change: transform; }
+    #ticks { display: flex; gap: calc(6 * var(--u)); margin-top: calc(12 * var(--u)); }
+    #ticks i { width: calc(36 * var(--u)); height: max(2px, calc(3 * var(--u))); border-radius: 99px; background: color-mix(in srgb, var(--ink) 13%, transparent); overflow: hidden; }
+    #ticks b { display: block; height: 100%; border-radius: 99px; background: var(--accent); transform-origin: left; transform: scaleX(0); }
+    /* indicador de la clave del keypad */
+    #code { left: 0; top: 0; display: flex; gap: calc(13 * var(--u)); padding: calc(16 * var(--u)) calc(23 * var(--u)); border-radius: 99px; background: rgba(255, 255, 255, .9); box-shadow: 0 calc(8 * var(--u)) calc(28 * var(--u)) rgba(22, 38, 96, .16), 0 0 0 max(1px, calc(1 * var(--u))) rgba(22, 38, 96, .07); }
+    #code i { width: calc(17 * var(--u)); height: calc(17 * var(--u)); border-radius: 50%; }
+    #end { left: calc(120 * var(--u)); top: 50%; transform: translateY(-50%); }
+    #end h1 { margin: 0; display: flex; align-items: center; gap: calc(26 * var(--u)); font: 600 calc(150 * var(--u))/1 "Inter Tight Variable", "Inter Tight", system-ui, sans-serif; letter-spacing: -.045em; color: var(--navy); }
+    #end h1 img { width: calc(140 * var(--u)); height: calc(140 * var(--u)); }
+    #end p { margin: calc(30 * var(--u)) 0 0; font: 500 calc(46 * var(--u))/1.2 "Inter Variable", Inter, system-ui, sans-serif; letter-spacing: -.015em; color: #5b6573; }
+    @media (orientation: portrait) {
+      #label { left: calc(84 * var(--u)); top: calc(232 * var(--u)); }
+      #end { left: calc(84 * var(--u)); top: calc(250 * var(--u)); transform: none; }
+      #end h1 { font-size: calc(132 * var(--u)); gap: calc(22 * var(--u)); }
+      #end h1 img { width: calc(122 * var(--u)); height: calc(122 * var(--u)); }
+    }
+  </style>
+</head>
+<body>
+  <div id="bg"></div>
+  <div id="night"></div>
+  <div id="glow"></div>
+  <canvas id="gl"></canvas>
+  <div id="view"></div>
+  <div id="label"><div class="meta"><span class="num"></span><span class="rule"></span><span class="tot">05</span></div><div class="mask"><span class="name"></span></div><div id="ticks"><i><b></b></i><i><b></b></i><i><b></b></i><i><b></b></i><i><b></b></i></div></div>
+  <div id="code"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <div id="end"><h1><img src="/safewait-logo.svg" alt=""><span>SafeWait</span></h1><p>Esperar ya no es un riesgo.</p></div>
+  <script type="module" src="./video.js"></script>
+</body>
+</html>

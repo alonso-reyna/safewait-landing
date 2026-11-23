@@ -51,7 +51,8 @@ export const ANCHORS = {
 };
 
 export function defaultState() {
-  return { night: 0, door: 0, bars: 0, roof: 0, xray: 0, real: false, busX: null, sos: 0, oled: 0, hl: null, plinth: true };
+  // lamp: luz LED de la caseta (null = sigue a night). dark: la página detrás está oscura (aristas más tenues).
+  return { night: 0, door: 0, bars: 0, roof: 0, xray: 0, real: false, busX: null, sos: 0, oled: 0, hl: null, plinth: true, lamp: null, dark: 0 };
 }
 
 /* ---------- texturas generadas ---------- */
@@ -570,17 +571,20 @@ export class Stage {
   #apply(s) {
     const M = this.M, set = s.real ? M.real : M.white;
     const n = s.night;
-    this.hemi.intensity = 2.3 * (1 - .88 * n);
+    // dk: noche sobre página oscura; la maqueta queda casi en silueta, más azul
+    const dk = (s.dark || 0) * n;
+    this.hemi.intensity = 2.3 * (1 - .88 * n) * (1 - .4 * dk);
     this.sun.intensity = 2.2 * (1 - .97 * n);
     this.fill.intensity = .6 * (1 - .9 * n);
-    this.hemi.color.setRGB(1 - .35 * n, 1 - .25 * n, 1);
-    M.led.emissiveIntensity = n * 3.2;
+    this.hemi.color.setRGB(1 - .35 * n - .2 * dk, 1 - .25 * n - .1 * dk, 1);
+    const lamp = s.lamp ?? n;
+    M.led.emissiveIntensity = lamp * 3.2;
     // pantalla OLED: se prende cuando el camión está en el paradero (antes de copiar emisión a los clones del armado)
     this.oledMat.emissiveIntensity = 0.06 + 1.6 * s.oled;
-    this.ledLights.forEach(l => { l.intensity = n * 90; });
-    this.spill.intensity = n * 45;
+    this.ledLights.forEach(l => { l.intensity = lamp * 90; });
+    this.spill.intensity = lamp * 45;
     this.edgeMat.color.setHex(s.real ? 0x5b3a1c : 0xaab3be);
-    this.edgeMat.opacity = s.real ? .3 : .5;
+    this.edgeMat.opacity = (s.real ? .3 : .5) * (1 - .85 * (s.dark || 0));
 
     const xo = s.xray > 0 ? 1 - .82 * s.xray : 1;
     [set.base, set.grass, set.logo].forEach(m => { m.opacity = xo; m.depthWrite = xo > .99; });

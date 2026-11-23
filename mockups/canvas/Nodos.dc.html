@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Centro de control</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0}
+.gd{background:linear-gradient(180deg,rgba(255,255,255,.17),rgba(255,255,255,.06));-webkit-backdrop-filter:blur(22px) saturate(170%);backdrop-filter:blur(22px) saturate(170%);border:1px solid rgba(255,255,255,.2);box-shadow:inset 0 1px 0 rgba(255,255,255,.38),inset 0 -1px 0 rgba(255,255,255,.05),0 16px 38px rgba(0,0,0,.4)}
+.tile{height:98px;padding:12px;box-sizing:border-box;border-radius:24px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.1);color:#ffffff;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-start;text-align:left;cursor:pointer;font-family:Inter,sans-serif}
+.tile.act{background:#ffffff;border-color:#ffffff;color:#162660;box-shadow:0 8px 24px rgba(127,182,255,.35)}
+.tile b{display:block;font:700 15px/19px Inter,sans-serif}
+.tile i{display:block;font:500 12.5px/16px Inter,sans-serif;font-style:normal;color:#c3cfe6}
+.tile.act i{color:#3d4960}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; box-sizing: border-box; font-family: Inter, system-ui, sans-serif; color: #ffffff; background: radial-gradient(circle at 47% 38%, rgba(127, 182, 255, .5) 0%, rgba(38, 125, 192, .18) 27%, rgba(11, 20, 51, 0) 56%), #0b1433">
+
+<img src="/_blob/0c69c9188ee9c0b5d52aecba28b2c3c1" alt="Maqueta de noche con la luz encendida y los barrotes arriba" style="position: absolute; left: -20px; top: 40px; width: 430px; height: 558px">
+
+<nav aria-label="Secciones" class="gd" style="position: absolute; left: 12px; top: 12px; width: 366px; height: 52px; border-radius: 26px; box-sizing: border-box; display: flex; align-items: center; gap: 10px; padding: 0 16px 0 12px">
+<img src="/_blob/207b1571468999a512ce9d5cb5da0933" alt="SafeWait" style="width: 28px; height: 28px; flex: none">
+<div style="flex: 1; height: 50px; display: flex; align-items: center">
+<a href="Main.dc.html" style="height: 50px; display: flex; align-items: center; gap: 6px; text-decoration: none; color: #c3cfe6; font: 500 12px/1 Inter, sans-serif"><span style="width: 10px; height: 10px; border-radius: 50%; background: #7fb6ff"></span>Inicio</a>
+<span aria-hidden="true" style="flex: 1; min-width: 8px; height: 2px; margin: 0 6px; border-radius: 1px; background: #7fb6ff"></span>
+<a href="PorQue.dc.html" style="height: 50px; display: flex; align-items: center; gap: 6px; text-decoration: none; color: #c3cfe6; font: 500 12px/1 Inter, sans-serif"><span style="width: 10px; height: 10px; border-radius: 50%; background: #7fb6ff"></span>Por qué</a>
+<span aria-hidden="true" style="flex: 1; min-width: 8px; height: 2px; margin: 0 6px; border-radius: 1px; background: #7fb6ff"></span>
+<a href="Nodos.dc.html" aria-current="page" style="height: 50px; display: flex; align-items: center; gap: 6px; text-decoration: none; color: #ffffff; font: 700 12px/1 Inter, sans-serif"><span style="width: 12px; height: 12px; border-radius: 50%; background: #ffffff; box-shadow: 0 0 0 3px rgba(127, 182, 255, .35), 0 0 12px rgba(127, 182, 255, .9)"></span>Nodos</a>
+<span aria-hidden="true" style="flex: 1; min-width: 8px; height: 2px; margin: 0 6px; border-radius: 1px; background: rgba(255, 255, 255, .24)"></span>
+<a href="Equipo.dc.html" style="height: 50px; display: flex; align-items: center; gap: 6px; text-decoration: none; color: #c3cfe6; font: 500 12px/1 Inter, sans-serif"><span style="width: 10px; height: 10px; box-sizing: border-box; border-radius: 50%; border: 2px solid #8fa3c9"></span>Equipo</a>
+</div>
+</nav>
+
+<div style="position: absolute; left: 334px; top: 80px; display: flex; flex-direction: column; gap: 8px">
+<button type="button" class="gd" aria-label="Quitar techo" style="width: 44px; height: 44px; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"></path><path d="M6 14v6h12v-6"></path></svg></button>
+<button type="button" class="gd" aria-label="Vista inicial" style="width: 44px; height: 44px; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5v5h5"></path><path d="M5 10a8 8 0 1 1 2 7"></path></svg></button>
+</div>
+
+<section class="gd" aria-label="Centro de control" style="position: absolute; left: 8px; top: 540px; width: 374px; height: 296px; border-radius: 34px; box-sizing: border-box">
+<div aria-live="polite" style="position: absolute; left: 16px; top: 14px; width: 340px; height: 44px; display: flex; align-items: center; gap: 12px">
+<span style="width: 30px; height: 30px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #ff6b5e; color: #0b1433; font: 700 14px/1 Inter, sans-serif">5</span>
+<p style="margin: 0; font: 500 14px/19px Inter, sans-serif; color: #ffffff">Barrotes arriba: la puerta se bloquea y la tira LED da la alerta.</p>
+</div>
+
+<div style="position: absolute; left: 13px; top: 70px; width: 346px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px">
+<button type="button" class="tile act" aria-pressed="true"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#162660" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"></path></svg><span><b>Noche</b><i>Activada</i></span></button>
+<button type="button" class="tile act" aria-pressed="true"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="#ffd66b" stroke="#162660" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0-4 10.5c.8.8 1.3 1.6 1.5 2.5h5c.2-.9.7-1.7 1.5-2.5A6 6 0 0 0 12 3z"></path><path d="M9 18h6" fill="none"></path><path d="M10 21h4" fill="none"></path></svg><span><b>Luz</b><i>Encendida</i></span></button>
+<button type="button" class="tile" aria-pressed="false"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff8a7f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16v-5a6 6 0 1 1 12 0v5l2 2H4l2-2z"></path><path d="M10 21h4"></path></svg><span><b>SOS</b><i>Pedir ayuda</i></span></button>
+<button type="button" class="tile" aria-pressed="false" aria-disabled="true"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 11h12v9H6z"></path><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg><span><b>Puerta</b><i style="color: #ffc2bb">Bloqueada</i></span></button>
+<button type="button" class="tile" aria-pressed="false"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v11z"></path><path d="M5 11h14"></path><path d="M8 17v3"></path><path d="M16 17v3"></path></svg><span><b>Camión</b><i>Llamar ruta</i></span></button>
+<button type="button" class="tile act" aria-pressed="true"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#162660" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18"></path><path d="M6 4v16"></path><path d="M10 4v16"></path><path d="M14 4v16"></path><path d="M18 4v16"></path></svg><span><b>Barrotes</b><i>Arriba</i></span></button>
+</div>
+</section>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -13,6 +13,9 @@
 <body>
   <a class="skip" href="#problema">Saltar al contenido</a>
 
+  <!-- Noche: capa fija bajo el lienzo; la sección "El problema" la oscurece y la luz de la caseta la abre -->
+  <div id="night" aria-hidden="true"><i></i><b></b><u></u></div>
+
   <!-- Lienzo único: dibuja el modelo en cada "vista" (hero, cómo funciona, explóralo) -->
   <canvas id="gl" aria-hidden="true"></canvas>
 
@@ -51,32 +54,36 @@
       <p class="load-status" id="loadStatus">Cargando modelo…</p>
     </section>
 
-    <!-- PROBLEMA -->
-    <section class="section problem" id="problema" data-section="problema">
-      <div class="wrap">
-        <p class="eyebrow stop-label">El problema</p>
-        <h2>Esperar el camión de noche, solo y sin luz.</h2>
-        <p class="intro">Muchos paraderos tienen poca iluminación y ninguna forma de pedir ayuda. Quienes más lo resienten son las mujeres, los adultos mayores y los niños que esperan solos.</p>
-        <p class="intro intro-answer">SafeWait es el prototipo a escala de un paradero de transporte público que cuida a quien espera solo. Tiene luz automática, botón de auxilio, puerta con tarjeta, aviso de qué ruta llegó y barrotes de seguridad.</p>
-        <ul class="stats">
-          <li class="stat reveal">
-            <span class="num" data-count="66.6">66.6 %</span>
-            <p>de las mujeres se sintió insegura en el transporte público.</p>
-            <span class="stat-src">2 de cada 3 mujeres, septiembre de 2026</span>
-          </li>
-          <li class="stat reveal">
-            <span class="num" data-count="55.9">55.9 %</span>
-            <p>de la población urbana señala la falta de alumbrado público como uno de los principales problemas de su ciudad.</p>
-            <span class="stat-src">Más de la mitad, septiembre de 2026</span>
-          </li>
-          <li class="stat reveal">
-            <span class="num" data-count="22.1">22.1 %</span>
-            <p>de las mujeres enfrentó acoso o violencia sexual en lugares públicos.</p>
-            <span class="stat-src">1 de cada 5 mujeres, primer semestre de 2026</span>
-          </li>
-        </ul>
-        <p class="source">Fuente: INEGI, Encuesta Nacional de Seguridad Pública Urbana (ENSU). Transporte público y alumbrado: septiembre de 2026, <a href="https://www.inegi.org.mx/contenidos/saladeprensa/boletines/2026/ensu/ENSU2026_10_RR.pdf" target="_blank" rel="noopener">reporte 49/26</a>. Acoso: primer semestre de 2026, <a href="https://www.inegi.org.mx/contenidos/saladeprensa/boletines/2026/ensu/ENSU2026_07_RR.pdf" target="_blank" rel="noopener">reporte 27/26</a>.</p>
+    <!-- PROBLEMA Y SOLUCIÓN: la página anochece, la caseta enciende su luz y la luz abre la vista siguiente -->
+    <section class="problem" id="problema" data-section="problema" data-phase="night">
+      <div class="prob-sticky">
+        <div class="view prob-view" id="view-problem" aria-hidden="true"></div>
+        <div class="wrap prob-wrap">
+          <div class="prob-panel prob-night">
+            <p class="eyebrow stop-label">El problema</p>
+            <h2>Esperar el camión de noche da miedo.</h2>
+            <ul class="prob-facts">
+              <li>Más de la mitad de la población urbana <b>(55.9&nbsp;%)</b> dice que en su ciudad falta alumbrado público.</li>
+              <li>Dos de cada tres mujeres <b>(66.6&nbsp;%)</b> se sienten inseguras en el transporte público.</li>
+              <li>Una de cada cinco <b>(22.1&nbsp;%)</b> sufrió acoso o violencia sexual en un lugar público en seis meses.</li>
+            </ul>
+            <p class="source">Fuente: INEGI, Encuesta Nacional de Seguridad Pública Urbana (ENSU). Transporte público y alumbrado: septiembre de 2026, <a href="https://www.inegi.org.mx/contenidos/saladeprensa/boletines/2026/ensu/ENSU2026_10_RR.pdf" target="_blank" rel="noopener">reporte 49/26</a>. Acoso: primer semestre de 2026, <a href="https://www.inegi.org.mx/contenidos/saladeprensa/boletines/2026/ensu/ENSU2026_07_RR.pdf" target="_blank" rel="noopener">reporte 27/26</a>.</p>
+          </div>
+          <div class="prob-panel prob-day">
+            <p class="eyebrow">La solución</p>
+            <h2>Un paradero que cuida a quien espera.</h2>
+            <p class="prob-lede">SafeWait es un prototipo a escala de un paradero de camión. Hace cinco cosas:</p>
+            <ul class="prob-does">
+              <li>Enciende su luz cuando oscurece.</li>
+              <li>Suena una alarma si alguien pide auxilio.</li>
+              <li>Abre la puerta con tarjeta.</li>
+              <li>Muestra qué ruta acaba de llegar.</li>
+              <li>Cubre las ventanas con barrotes.</li>
+            </ul>
+          </div>
+        </div>
       </div>
+      <div class="prob-track" aria-hidden="true"></div>
     </section>
 
     <!-- CÓMO FUNCIONA (scroll guiado) -->
