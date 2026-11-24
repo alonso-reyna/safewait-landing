@@ -41,6 +41,30 @@ const ledY = CAD.wallTop - 1.4, ledZ = CAD.backInnerZ + 0.07;
 // normal del plano de corte del armado: casi vertical (las paredes suben) con algo de inclinación (lo plano se barre)
 const SWEEP = new THREE.Vector3(0.45, -1, 0.3).normalize();
 
+// vista explotada: cuánto sube cada capa (cm). Los muros además se abren hacia afuera.
+export const EX = { top: 6, walk: 11, floor: 16, lid: 21, part: 23, wall: 24, out: 10, corner: 34, roof: 40, roofTop: 46 };
+// avance de una pieza con la vista explotada en e (0 a 1): las que más se alejan arrancan primero
+export function exK(e, len) {
+  const k = Math.min(1, Math.max(0, e * 1.35 - (1 - Math.min(1, len / 50)) * .35));
+  return k * k * (3 - 2 * k);
+}
+function exFor(name, c) {
+  const has = (...k) => k.some(x => name.startsWith(x));
+  if (has('bastidor_top')) return [0, EX.top, 0];
+  if (has('acera', 'detalleGrama')) return [0, EX.walk, 0];
+  if (has('PisoHut', 'mod_')) return [0, EX.floor, 0];
+  if (has('keyboard')) return [0, EX.lid, 0];
+  // cada muro (sus dos caras y sus marcos) se abre como una sola pieza; los postes salen en diagonal
+  if (has('poster')) return [Math.sign(c.x - hutCx) * EX.out, EX.wall, Math.sign(c.z - hutCz) * EX.out];
+  if (has('backInner', 'backOuter')) return [0, EX.wall, -EX.out];
+  if (has('frontInner', 'frontOuter', 'Puertain', 'WindowinSide', 'FrWindowinRood')) return [0, EX.wall, EX.out];
+  if (has('leftInner', 'leftOuter')) return [Math.sign(c.x - hutCx) * EX.out, EX.wall, 0];
+  if (has('esquina')) return [0, EX.corner, 0];
+  if (has('Roofside', 'Rooffront')) return [0, EX.roof, 0];
+  if (has('techoUp')) return [0, c.y > 36 ? EX.roofTop : EX.roof, 0];
+  return null; // pedestal y mecanismo de los barrotes: se quedan en su lugar
+}
+
 // puntos de cada nodo (para hotspots y cámara)
 export const ANCHORS = {
   light: new THREE.Vector3(hutCx, ledY, ledZ + 0.4),
@@ -52,8 +76,8 @@ export const ANCHORS = {
 
 export function defaultState() {
   // lamp: luz LED de la caseta (null = sigue a night). dark: la página detrás está oscura (aristas más tenues).
-  // led: color de la tira LED (hex) cuando da una alerta; null = su azul de siempre.
-  return { night: 0, door: 0, bars: 0, roof: 0, xray: 0, real: false, busX: null, sos: 0, oled: 0, hl: null, plinth: true, lamp: null, dark: 0, led: null };
+  // led: color de la tira LED (hex) cuando da una alerta; null = su azul de siempre. explode: vista explotada (0 a 1).
+  return { night: 0, door: 0, bars: 0, roof: 0, xray: 0, real: false, busX: null, sos: 0, oled: 0, hl: null, plinth: true, lamp: null, dark: 0, led: null, explode: 0 };
 }
 
 /* ---------- texturas generadas ---------- */
@@ -121,6 +145,7 @@ export class Stage {
 
     this.ledLights = [-6, 6].map(dx => { const l = new THREE.PointLight(0x7fb6ff, 0, 45, 1.2); l.position.set(hutCx + dx, CAD.wallTop - 3, hutCz); this.root.add(l); return l; });
     this.spill = new THREE.PointLight(0x7fb6ff, 0, 40, 1.2); this.spill.position.set(hutCx, CAD.floorY + 6, CAD.front.z + 4); this.root.add(this.spill);
+    [...this.ledLights, this.spill].forEach(l => { l.userData.y0 = l.position.y; });
   }
 
   /* ---------- materiales: maqueta blanca y materiales reales ---------- */
@@ -260,9 +285,14 @@ export class Stage {
     }
     this.meshes.push(mesh);
   }
-  #piece(obj, t0) {
+  // ex: desplazamiento [x, y, z] en cm de la pieza en la vista explotada (null = no se mueve)
+  #piece(obj, t0, ex = null) {
     const meshes = []; obj.traverse(o => { if (o.isMesh) meshes.push(o); });
     obj.userData.y0 = obj.position.y;
+    if (ex) { // se guarda en el espacio del padre (el GLB viene en metros)
+      const par = obj.parent, a = par.worldToLocal(new THREE.Vector3());
+      obj.userData.ex = { v: par.worldToLocal(new THREE.Vector3(...ex)).sub(a), len: Math.hypot(...ex), x0: obj.position.x, z0: obj.position.z, on: false };
+    }
     // plano de corte de la pieza: inclinado, para que las piezas planas (calle, techo) se barran en diagonal y no aparezcan en un cuadro
     const plane = new THREE.Plane(SWEEP.clone(), 0);
     meshes.forEach(m => { m.userData.clip = plane; });
@@ -280,14 +310,14 @@ export class Stage {
     this.doorL = new THREE.Group(); this.doorR = new THREE.Group(); this.root.add(this.doorL, this.doorR);
     this.#track(this.#box(CAD.door.x1, CAD.door.x1 + dW - 0.03, CAD.door.y1, CAD.door.y2 - 0.1, dz - 0.12, dz + 0.12, this.doorL), 'door', { hl: 'door' });
     this.#track(this.#box(CAD.door.x1 + dW + 0.03, CAD.door.x2, CAD.door.y1, CAD.door.y2 - 0.1, dz - 0.12, dz + 0.12, this.doorR), 'door', { hl: 'door' });
-    this.#piece(this.doorL, 1.35); this.#piece(this.doorR, 1.4);
+    this.#piece(this.doorL, 1.35, [0, EX.wall, EX.out + 9]); this.#piece(this.doorR, 1.4, [0, EX.wall, EX.out + 9]);
 
     const glass = new THREE.Group(); this.root.add(glass);
     [CAD.winL, CAD.winR].forEach(w => {
       const p = new THREE.Mesh(new THREE.PlaneGeometry(w.x2 - w.x1, w.y2 - w.y1), this.M.glass);
       p.position.set((w.x1 + w.x2) / 2, (w.y1 + w.y2) / 2, -12.38); glass.add(p);
     });
-    this.#piece(glass, 1.45);
+    this.#piece(glass, 1.45, [0, EX.wall, EX.out]);
 
     const led = new THREE.Group(); this.root.add(led);
     this.#track(this.#box(CAD.inner.x1 + 0.4, CAD.inner.x2 - 0.4, ledY - 0.5, ledY + 0.5, ledZ - 0.05, ledZ + 0.05, led), 'pcb', { edges: false });
@@ -296,7 +326,7 @@ export class Stage {
       const m = new THREE.Mesh(g, this.M.led);
       m.position.set(CAD.inner.x1 + 1 + i * ((CAD.inner.x2 - CAD.inner.x1 - 2) / (N - 1)), ledY, ledZ + 0.1); led.add(m);
     }
-    this.#piece(led, 1.2);
+    this.#piece(led, 1.2, [0, EX.wall, -3]);
 
     // sensor de color: placa negra con cuatro LED transparentes en las esquinas, chip al centro y pines a los lados
     const sensor = new THREE.Group(); sensor.position.set(COLOR.x, 15.15, COLOR.z); sensor.rotation.y = COLOR.rot; this.root.add(sensor);
@@ -328,7 +358,7 @@ export class Stage {
     [[-0.38, -0.2], [-0.38, 0.05], [-0.38, 0.3], [0.38, -0.2], [0.38, 0.05], [0.38, 0.3]].forEach(([x, z]) => add(new THREE.BoxGeometry(0.16, 0.05, 0.09), sm.smd, x, 0.105, z));
     add(new THREE.BoxGeometry(0.16, 0.08, 0.1), sm.cap, 0, 0.12, -0.5);
     add(new THREE.BoxGeometry(0.12, 0.06, 0.08), sm.cap, 0, 0.11, -0.34);
-    this.#piece(sensor, 0.5);
+    this.#piece(sensor, 0.5, [0, 13, 0]);
 
     // FSR: pastilla redonda en la cara interior del muro del fondo; la cola sube a la ranurita
     const fsr = new THREE.Group(); this.root.add(fsr);
@@ -339,7 +369,7 @@ export class Stage {
     const tail = new THREE.Mesh(new THREE.BoxGeometry(0.5, 21.4 - FSR.y - 0.9, 0.04));
     tail.position.set(FSR.x, (FSR.y + 0.9 + 21.4) / 2, wallZ + 0.02); fsr.add(tail);
     this.#track(tail, 'fsr', { edges: false });
-    this.#piece(fsr, 1.3);
+    this.#piece(fsr, 1.3, [0, EX.wall, -3]);
 
     // pantalla OLED: placa negra en el muro izquierdo interior, mirando hacia adentro (+x)
     const oled = new THREE.Group(); oled.position.set(OLED.x + 0.04, OLED.y, OLED.z); oled.rotation.y = Math.PI / 2; this.root.add(oled);
@@ -354,7 +384,7 @@ export class Stage {
     this.oledMat = new THREE.MeshStandardMaterial({ color: 0x05070a, emissive: 0xffffff, emissiveMap: this.oledTex, emissiveIntensity: 0, roughness: .25 });
     const screen = new THREE.Mesh(new THREE.PlaneGeometry(OLED.size * 0.74, OLED.size * 0.37), this.oledMat);
     screen.position.set(0, OLED.size * 0.08, 0.045); oled.add(screen);
-    this.#piece(oled, 1.3);
+    this.#piece(oled, 1.3, [-3, EX.wall, 0]);
 
     // buzzer: cilindro negro que asoma por el círculo de la tapa del módulo
     const buzzer = new THREE.Group(); buzzer.position.set(BUZZER.x, BUZZER.y, BUZZER.z); this.root.add(buzzer);
@@ -362,7 +392,7 @@ export class Stage {
     this.#track(bz, 'fsr', { hl: 'sos', edges: false });
     const bzHole = new THREE.Mesh(new THREE.CircleGeometry(0.12, 16), this.M.chip);
     bzHole.rotation.x = -Math.PI / 2; bzHole.position.y = 0.26; buzzer.add(bzHole);
-    this.#piece(buzzer, 0.7);
+    this.#piece(buzzer, 0.7, [0, EX.part, 0]);
 
     // fotorresistencia: cabeza redonda con la pista en zigzag, en el cuadrito de la tapa
     const ldr = new THREE.Group(); ldr.position.set(LDR.x, LDR.y, LDR.z); this.root.add(ldr);
@@ -379,7 +409,7 @@ export class Stage {
     ]);
     head.position.y = 0.06; ldr.add(head);
     this.ldrHead = head;
-    this.#piece(ldr, 0.7);
+    this.#piece(ldr, 0.7, [0, EX.part, 0]);
 
     // ondas del SOS: salen del buzzer (atadas al scroll, no en loop)
     this.rings = [0, 1, 2].map(() => {
@@ -462,7 +492,7 @@ export class Stage {
       if (cls === 'logoBlock') this.#logoPlane(o);
       if (/^(bastidor|under_|logo|guia|soporte|polea|bandeja|barrote|cremallera)/.test(name)) this.plinth.push(o);
       const ph = ORDER.find(([re]) => re.test(name));
-      this.#piece(o, (ph ? ph[1] : 1.0) + (i % 3) * 0.04);
+      this.#piece(o, (ph ? ph[1] : 1.0) + (i % 3) * 0.04, exFor(name, c));
     });
     this.#cleanTop();
     this.root.add(model);
@@ -489,7 +519,7 @@ export class Stage {
     const top = this.cleanTopMesh = new THREE.Mesh(geo);
     this.root.add(top);
     this.#track(top, 'base');
-    this.#piece(top, 0);
+    this.#piece(top, 0, [0, EX.top, 0]);
   }
 
   // el grabado va sobre la cara exterior del panel inclinado
@@ -622,8 +652,15 @@ export class Stage {
     }
 
     // posiciones: armado + estado
+    const ex = s.explode || 0;
     for (const p of this.pieces) {
       p.obj.position.y = p.obj.userData.y0;
+      const x = p.obj.userData.ex;
+      if (x && (ex > 0 || x.on)) { // vista explotada: la pieza se aparta; al volver a 0 recupera su lugar
+        const k = exK(ex, x.len);
+        p.obj.position.x = x.x0 + x.v.x * k; p.obj.position.y += x.v.y * k; p.obj.position.z = x.z0 + x.v.z * k;
+        x.on = ex > 0;
+      }
       for (const m of p.meshes) {
         const f = m.userData.fade ?? 1, u = m.userData;
         m.visible = f > 0;
@@ -646,6 +683,9 @@ export class Stage {
     this.bars.forEach(o => { o.position.y += s.bars * CAD.barLift / 100; });
     const roofLift = s.roof * 0.4;
     this.roof.forEach(o => { o.position.y += roofLift; if (s.roof >= .98) o.visible = false; });
+    // la luz de la caseta sube con los muros
+    const lift = exK(ex, EX.wall) * EX.wall;
+    this.ledLights.forEach(l => { l.position.y = l.userData.y0 + lift; }); this.spill.position.y = this.spill.userData.y0 + lift;
     this.doorL.position.x = -s.door * this.doorHalf * .95;
     this.doorR.position.x = s.door * this.doorHalf * .95;
 
@@ -701,7 +741,7 @@ export class Stage {
     view.camera.updateMatrixWorld();
     const s = view.state;
     this.#apply(s);
-    const key = [s.bars, s.door, s.roof, s.busX, s.plinth, this.asm.done ? 1 : this.asm.t].join();
+    const key = [s.bars, s.door, s.roof, s.busX, s.plinth, s.explode, this.asm.done ? 1 : this.asm.t].join();
     if (key !== this.shadowKey) { this.shadowKey = key; r.shadowMap.needsUpdate = true; }
     r.setViewport(0, 0, pw, ph); r.setScissor(0, 0, pw, ph); r.setScissorTest(true);
     r.clear(); r.render(this.scene, view.camera);

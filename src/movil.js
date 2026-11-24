@@ -9,7 +9,8 @@ import '@fontsource-variable/inter-tight';
 import './movil.css';
 import * as THREE from 'three';
 import { CONFIG, NODES, TEAM, TEACHERS } from './content.js';
-import { Stage, ANCHORS, COLOR, CAD, FSR, defaultState } from './scene.js';
+import { Stage, ANCHORS, CAD, FSR, OLED, BUZZER, LDR, EX, exK, defaultState } from './scene.js';
+import { makeWave } from './fx.js';
 import { buildDetails, doorGrids } from './detail.js';
 import { makeBus } from './bus.js';
 
@@ -44,6 +45,7 @@ const I = {
   hand: '<path d="M12 12V4.5a1.5 1.5 0 0 1 3 0V11"/><path d="M15 11V7.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1a6 6 0 0 1-5-2.7L3.6 14a1.5 1.5 0 0 1 2.5-1.6L8 15V6.500a1.5 1.5 0 0 1 3 0V11"/>',
   layers: '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/><path d="M3 17.500l9 5 9-5"/>',
   x: '<path d="M6 6l12 12"/><path d="M18 6L6 18"/>',
+  explode: '<rect x="9" y="9" width="6" height="6" rx="1"/><path d="M6.500 6.500L3 3"/><path d="M3 6.500V3h3.500"/><path d="M17.500 6.500L21 3"/><path d="M17.500 3H21v3.500"/><path d="M6.500 17.500L3 21"/><path d="M3 17.500V21h3.500"/><path d="M17.500 17.500L21 21"/><path d="M21 17.500V21h-3.500"/>',
   chart: '<path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M3 20h18"/>',
 };
 const ic = (k, s = 22) => `<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${I[k]}</svg>`;
@@ -85,7 +87,7 @@ const app = document.createElement('div');
 app.id = 'app';
 app.innerHTML = `
 <a class="skip" href="#porque">Saltar al contenido</a>
-<nav class="bar glass" aria-label="Secciones">
+<nav class="bar glass glass-d" aria-label="Secciones">
   <a class="bar-logo" href="#inicio" aria-label="SafeWait, ir al inicio"><img src="/safewait-logo.svg" alt="" width="28" height="28"></a>
   <div class="stops"><span class="lens" aria-hidden="true"></span>${STOPS.map(([id, t]) => `<a href="#${id}" data-stop="${id}">${t}</a>`).join('')}</div>
 </nav>
@@ -119,7 +121,7 @@ app.innerHTML = `
     </div>
     <div class="why-body">
       <div class="pane pane-dark">
-        <h2>Esperar el camión de noche da miedo.</h2>
+        <h2>Esperar el camión de noche es un riesgo.</h2>
         <ul class="facts">${FACTS.map(fact).join('')}</ul>
         <a class="pill" href="${SOURCE}" target="_blank" rel="noopener">${ic('ext', 16)}Fuente: INEGI, ENSU 2026</a>
       </div>
@@ -132,13 +134,14 @@ app.innerHTML = `
 
   <section class="scr ctl" id="nodos" data-section="nodos">
     <div class="glow" aria-hidden="true"></div>
-    <div class="view" id="v-ctl" role="img" aria-label="Maqueta 3D del paradero. Desliza a los lados para girarla."><canvas></canvas></div>
+    <div class="view" id="v-ctl" role="img" aria-label="Maqueta 3D del paradero. Desliza a los lados para girarla."><canvas></canvas><div class="parts" id="parts" inert><svg aria-hidden="true"></svg></div></div>
     <div class="tools">
-      <button type="button" class="round glass" id="roofBtn" aria-pressed="false" aria-label="Quitar techo">${ic('roof', 20)}</button>
-      <button type="button" class="round glass" id="realBtn" aria-pressed="false" aria-label="Materiales reales">${ic('layers', 20)}</button>
-      <button type="button" class="round glass" id="homeBtn" aria-label="Vista inicial">${ic('reset', 20)}</button>
+      <button type="button" class="round glass glass-d" id="exBtn" aria-pressed="false" aria-label="Vista explotada">${ic('explode', 20)}</button>
+      <button type="button" class="round glass glass-d" id="roofBtn" aria-pressed="false" aria-label="Quitar techo">${ic('roof', 20)}</button>
+      <button type="button" class="round glass glass-d" id="realBtn" aria-pressed="false" aria-label="Materiales reales">${ic('layers', 20)}</button>
+      <button type="button" class="round glass glass-d" id="homeBtn" aria-label="Vista inicial">${ic('reset', 20)}</button>
     </div>
-    <section class="panel glass" aria-label="Centro de control">
+    <section class="panel glass glass-d" aria-label="Centro de control">
       <div class="status" id="status" aria-live="polite"></div>
       <button type="button" class="map" id="map" aria-label="Cerrar el mapa de rutas" tabindex="-1">
         <span class="map-head"><span class="map-n">2</span><span><b>Llegó la Ruta 2</b><i>Línea azul, a Rancho IoT</i></span><span class="map-x">${ic('x', 18)}</span></span>
@@ -217,7 +220,9 @@ if (!stage) no3D();
 // maqueta de los videos: azul claro de un solo tono, puertas con retícula, keypad de membrana, banca y pinitos
 const TONE = { wall: 0x6ab2f2, frame: 0x7cbdf5, floor: 0x58a5ea, base: 0x5aa8ec, grass: 0x4c98df, corner: 0x3d88d2, door: 0xf2f8fe, pcb: 0x1a4c80, fsr: 0x162660, bars: 0x6ab2f2, keypad: 0x58a5ea, pulley: 0x4c98df, guide: 0x58a5ea };
 const EDGE = new THREE.Color(0x3f86c9);
-let doorMat = null, doorMatR = null, bus = null, realNow = false, swapReal = () => {};
+let doorMat = null, doorMatR = null, bus = null, realNow = false, swapReal = () => {}, spread = () => {}, sosFx = () => {};
+let SOS_AT = V(FSR.x, 21.36, CAD.backInnerZ + 2.4), exNow = 0, exNight = 0;
+const EDGE_X = new THREE.Color(0x17407f), EDGE_XN = new THREE.Color(0x8fc2ff);
 const EDGE_R = new THREE.Color(0x6b4a2a);
 if (stage) {
   const W = stage.M.white;
@@ -247,7 +252,7 @@ if (stage) {
   }
   const doorSync = doorGrids(stage, 0x162660);
   // sensor del SOS: sale horizontal por la ranura del muro del fondo y descansa en una repisa
-  const SOS_P = V(FSR.x, 21.36, CAD.backInnerZ + 2.4);
+  const SOS_P = SOS_AT;
   for (const m of stage.meshes) {
     const g = m.geometry.parameters || {};
     if (m.userData.cls !== 'fsr') continue;
@@ -291,6 +296,40 @@ if (stage) {
     const m = new THREE.Mesh(geo, shelf); m.castShadow = m.receiveShadow = true; g.add(m);
     details.piece(g, 1.25);
   }
+  { // vista explotada: los detalles siguen a su capa (banca con el piso, pinitos con la banqueta, keypad sobre su tapa, repisa con el muro)
+    const moves = [[details.pieces[0], detailsR.pieces[0], [0, EX.floor, 0]], [details.pieces[1], detailsR.pieces[1], [0, EX.walk, 0]], [details.pieces[2], detailsR.pieces[2], [0, EX.lid + 4, 0]], [details.pieces[3], null, [0, EX.wall, -3]]];
+    spread = (e, night = 0) => {
+      exNow = e; exNight = night;
+      for (const [a, b, [x, y, z]] of moves) {
+        const k = e > 0 ? exK(e, Math.hypot(x, y, z)) : 0;
+        a.group.position.set(x * k, y * k, z * k); if (b) b.group.position.copy(a.group.position);
+      }
+      bus.group.position.y = CAD.baseTop + (e > 0 ? exK(e, EX.top) * EX.top : 0);
+    };
+  }
+  { // ondas del SOS: un toque en el sensor de fuerza y, desde el buzzer, anillos tipo sonar que crecen y se apagan
+    const RED = 0xff5a4e, LIFE = 1.7, GAP = LIFE / 3;
+    const waves = [0, 1, 2].map(() => makeWave(stage.root, { color: RED, size: 13 }));
+    const core = makeWave(stage.root, { color: RED, size: 2.4 }), touch = makeWave(stage.root, { color: 0xffffff, size: 4 });
+    const all = [...waves, core, touch];
+    all.forEach(w => { w.mesh.material.depthTest = false; w.mesh.renderOrder = 6; });
+    // t: reloj de las ondas (negativo = nada); until: el buzzer deja de emitir en ese instante; e: vista explotada
+    sosFx = (t, until = Infinity, e = 0) => {
+      if (t < 0) { all.forEach(w => { w.mesh.visible = false; }); return; }
+      const up = e > 0 ? exK(e, EX.part) * EX.part : 0, upW = e > 0 ? exK(e, EX.wall) * EX.wall : 0;
+      waves.forEach((w, i) => {
+        const tt = t - i * GAP, born = Math.floor(tt / LIFE) * LIFE + i * GAP;
+        w.mesh.position.set(BUZZER.x, BUZZER.y + 0.5 + up, BUZZER.z);
+        if (reduceMotion) { w.glow(i ? 0 : t < until ? .7 : 0, 5.5, .12, .1); return; }
+        w.play(tt < 0 || born >= until ? -1 : (tt % LIFE) / LIFE, { r0: .8, r1: 12.5, w: .5, a: 1, fill: .22 });
+      });
+      core.mesh.position.set(BUZZER.x, BUZZER.y + 0.52 + up, BUZZER.z);
+      core.glow(t < until ? .55 + .3 * Math.sin(t * Math.PI * 2 / GAP) : 0, 1.0, .9, .18);
+      touch.mesh.position.set(SOS_AT.x, SOS_AT.y + 0.12 + upW, SOS_AT.z - (e > 0 ? exK(e, EX.wall) * 3 : 0));
+      touch.play(reduceMotion ? -1 : t / .9, { r0: .3, r1: 3.6, w: .14, a: .95, fill: .25 });
+    };
+    sosFx.life = LIFE;
+  }
   const edgeObjs = [];
   stage.scene.onBeforeRender = () => {
     doorSync();
@@ -298,6 +337,11 @@ if (stage) {
     const ec = realNow ? EDGE_R : EDGE;
     stage.edgeMat.color.copy(ec);
     for (const e of edgeObjs) if (e.userData.clipMat) e.userData.clipMat.color.copy(ec);
+    if (exNow > 0) { // vista explotada: aristas marcadas, como en un plano, para que cada pieza se distinga de día y de noche
+      const m = stage.edgeMat;
+      m.color.lerp(exNight > .5 ? EDGE_XN : realNow ? EDGE_R : EDGE_X, exNow);
+      m.opacity += ((exNight > .5 ? .5 : .95) - m.opacity) * exNow;
+    }
   };
 }
 
@@ -390,7 +434,7 @@ hero.onFrame = v => {
   const a = HERO_FRONT + Math.sin(heroT * Math.PI * 2 / 50) * 0.14;
   fitBox(v.camera, v.w, v.h, box, HERO_FRONT, a, 0.5);
   if (doorMat) doorMat.emissiveIntensity = .5;
-  swapReal(false); if (bus) bus.setX(null);
+  swapReal(false); if (bus) bus.setX(null); spread(0); sosFx(-1);
   if (!heroGlow) { heroGlow = true; glowAt(v, heroSec); }
 };
 hero.update = dt => {
@@ -408,7 +452,7 @@ why.onFrame = v => {
   fitBox(v.camera, v.w, v.h, { cx: v.w / 2, cy: v.h * .5, w: v.w * .94, h: v.h * .78 }, 0.46, 0.46 - luz * .1, 0.3);
   v.state.lamp = luz;
   if (doorMat) doorMat.emissiveIntensity = luz * .5;
-  swapReal(false); if (bus) bus.setX(null);
+  swapReal(false); if (bus) bus.setX(null); spread(0); sosFx(-1);
   if (!whyGlow) { whyGlow = true; glowAt(v, whySec); }
 };
 const knob = $('#knob'), slide = $('#slide'), paneDark = $('.pane-dark'), paneLit = $('.pane-lit');
@@ -492,7 +536,9 @@ function shoot(shot, dur = 1.5) {
 }
 function holdCam() { cam.k = 1; cam.goal = { tgt: cam.tgt.clone(), az: cam.az, el: cam.el, r: cam.r }; }
 
-const C = { night: 1, lamp: 1, door: 0, bars: 0, roof: 0 };     // metas (0 o 1)
+const EXPLODED = { tgt: V(-1, 37, -2), az: 0.6, el: 0.3, r: 49 };
+const C = { night: 1, lamp: 1, door: 0, bars: 0, roof: 0, explode: 0 };     // metas (0 o 1)
+let waveT = -1, waveEnd = Infinity;   // reloj de las ondas del SOS: siguen un momento después de que la alerta termina
 let sosT = -1, busT = -1, busPhase = '', busMark = 0, busX = null, roofTmp = 0, mapClose = false;
 const SOS_DUR = 6, BUS = { in: 2.6, zoom: 2.3, map: 7, out: 2.4, far: 82, stop: 15 };
 const mapEl = $('#map'), panel = $('.panel');
@@ -506,7 +552,69 @@ ctl.onFrame = v => {
   if (doorMat) doorMat.emissiveIntensity = v.state.lamp * v.state.night * .5;
   if (doorMatR) doorMatR.emissiveIntensity = v.state.lamp * v.state.night * .5;
   swapReal(v.state.real); if (bus) bus.setX(busX);
+  spread(v.state.explode, v.state.night); sosFx(waveT, waveEnd, v.state.explode);
+  placeParts(v);
 };
+
+/* vista explotada: cada componente con su etiqueta; al tocarla, el panel dice qué hace */
+const partsEl = $('#parts'), partsSvg = $('svg', partsEl);
+const PARTS = [
+  [1, 'Tira LED', ANCHORS.light, [0, EX.wall, -3], 'Tira LED WS2812B: ilumina la caseta cuando oscurece.'],
+  [4, 'Pantalla OLED', V(OLED.x, OLED.y, OLED.z), [-3, EX.wall, 0], 'Pantalla OLED: muestra la ruta que acaba de llegar.'],
+  [2, 'Sensor de fuerza', SOS_AT, [0, EX.wall, -3], 'Sensor de fuerza FSR: al presionarlo se pide auxilio.'],
+  [3, 'Puerta', ANCHORS.door, [0, EX.wall, EX.out + 9], 'Puerta: un lector NFC valida la tarjeta y un servo la abre.'],
+  [5, 'Barrotes', V(-17.2, 9, -10.1), [0, 0, 0], 'Barrotes: un motor a pasos los sube frente a las ventanas.'],
+  [2, 'Buzzer', V(BUZZER.x, BUZZER.y + .3, BUZZER.z), [0, EX.part, 0], 'Buzzer: suena la alarma cuando alguien pide auxilio.'],
+  [1, 'Fotorresistencia', V(LDR.x, LDR.y + .2, LDR.z), [0, EX.part, 0], 'Fotorresistencia: mide la luz ambiente desde el módulo.'],
+  [5, 'Keypad', V(19.2, 19.4, -16.1), [0, EX.lid + 4, 0], 'Keypad: con el código correcto suben los barrotes.'],
+  [4, 'Sensor de color', V(ANCHORS.route.x, 16, ANCHORS.route.z), [0, 13, 0], 'Sensor de color TCS34725: lee la franja bajo el camión.'],
+].map(([n, name, at, ex, text]) => {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'part'; b.innerHTML = `<b>${n}</b>${name}`;
+  b.setAttribute('aria-label', `${name}, nodo ${n}`);
+  const dot = document.createElement('i'); dot.className = 'part-dot';
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  partsSvg.append(line); partsEl.append(dot, b);
+  const part = { n, at, ex: V(...ex), len: Math.hypot(...ex), side: '', b, dot, line, w: 0, x: 0, y: 0, px: 0, py: 0 };
+  b.addEventListener('click', () => {
+    PARTS.forEach(q => q.b.classList.toggle('on', q === part));
+    say(n, text);
+  });
+  return part;
+});
+const PART_H = 26, barEl = $('.bar'), toolsEl = $('.tools');
+function placeParts(v) {
+  const e = v.state.explode, a = ramp(e, .72, 1);
+  partsEl.style.opacity = a.toFixed(3);
+  partsEl.style.visibility = a > 0 ? 'visible' : 'hidden';
+  if (a <= 0 || !v.w) return;
+  // el punto va sobre el componente; las etiquetas se acomodan en dos columnas, a los lados de la maqueta, sin encimarse
+  const y0 = v.el.getBoundingClientRect().top;
+  const top = Math.max(8, barEl.getBoundingClientRect().bottom - y0 + 10), topR = Math.max(top, toolsEl.getBoundingClientRect().bottom - y0 + 10);
+  const bottom = panel.getBoundingClientRect().top - y0 - PART_H - 10;
+  for (const p of PARTS) {
+    if (!p.w) p.w = p.b.offsetWidth;
+    tmp.copy(p.at).addScaledVector(p.ex, exK(e, p.len)).project(v.camera);
+    p.x = (tmp.x * .5 + .5) * v.w; p.y = (-tmp.y * .5 + .5) * v.h;
+  }
+  // mitad de las etiquetas a cada lado: el corte es la mediana; una etiqueta cambia de lado solo si lo cruza con margen
+  const mid = [...PARTS].sort((q, r) => q.x - r.x)[(PARTS.length + 1) >> 1].x - 1;
+  for (const p of PARTS) if (!p.side || (p.side === 'l' ? p.x > mid + 22 : p.x < mid - 22)) p.side = p.x < mid ? 'l' : 'r';
+  for (const side of ['l', 'r']) {
+    const col = PARTS.filter(p => p.side === side).sort((q, r) => q.y - r.y);
+    // en pantallas bajas la columna derecha no cabe bajo los botones: se recorre a su lado
+    const tight = side === 'r' && bottom - topR < (col.length - 1) * (PART_H + 8), lo = side === 'r' && !tight ? topR : top;
+    col.forEach((p, i) => { p.py = Math.max(clamp(p.y - PART_H / 2, lo, bottom), i ? col[i - 1].py + PART_H + 8 : lo); });
+    for (let i = col.length - 1; i >= 0; i--) col[i].py = Math.min(col[i].py, i < col.length - 1 ? col[i + 1].py - PART_H - 8 : bottom);
+    for (const p of col) {
+      p.px = side === 'l' ? 8 : v.w - p.w - (tight ? 62 : 8);
+      p.b.style.transform = `translate(${p.px.toFixed(1)}px, ${p.py.toFixed(1)}px)`;
+      p.dot.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`;
+      p.line.setAttribute('x1', p.x.toFixed(1)); p.line.setAttribute('y1', p.y.toFixed(1));
+      p.line.setAttribute('x2', (side === 'l' ? p.px + p.w : p.px).toFixed(1)); p.line.setAttribute('y2', (p.py + PART_H / 2).toFixed(1));
+    }
+  }
+}
 const approach = (cur, tgt, rate, dt) => {
   if (reduceMotion) return tgt;
   const n = cur + (tgt - cur) * Math.min(1, dt * rate);
@@ -515,7 +623,7 @@ const approach = (cur, tgt, rate, dt) => {
 ctl.update = (dt, now) => {
   const s = ctl.state;
   let moving = false;
-  const prev = [s.night, s.lamp, s.door, s.bars, s.roof, cam.az, cam.el, cam.r, cam.tgt.x, cam.tgt.y, cam.tgt.z, busX, s.sos, s.oled, s.led];
+  const prev = [s.night, s.lamp, s.door, s.bars, s.roof, cam.az, cam.el, cam.r, cam.tgt.x, cam.tgt.y, cam.tgt.z, busX, waveT, s.oled, s.led, s.explode];
   // cámara
   if (!cam.drag) {
     if (cam.k < 1) {
@@ -532,16 +640,18 @@ ctl.update = (dt, now) => {
   s.door = approach(s.door, C.door, 3, dt);
   s.bars = approach(s.bars, C.bars, 1.5, dt);
   s.roof = approach(s.roof, Math.max(C.roof, roofTmp), 3.5, dt);
+  // vista explotada: avanza parejo y cada pieza suaviza su tramo. El pedestal se vuelve translúcido y deja ver los barrotes
+  s.explode = reduceMotion ? C.explode : clamp(s.explode + (C.explode ? dt : -dt) / 1.25);
+  s.xray = s.explode * .5;
   // SOS: ondas desde el buzzer y la tira LED alternando rojo y azul
   let lamp = C.lamp, led = null;
+  if (waveT >= 0) { waveT += dt; moving = true; if (waveT > waveEnd + sosFx.life) waveT = -1; }
   if (sosT >= 0) {
     sosT += dt;
-    s.sos = (sosT % 1.1) / 1.1;
     led = Math.floor(sosT / .28) % 2 ? 0x2f6bff : 0xff2a1f; lamp = 1;
-    if (sosT >= SOS_DUR) { sosT = -1; s.sos = 0; say(2, 'Alerta terminada. En la maqueta dura 30 segundos.'); paint(); }
+    if (sosT >= SOS_DUR) { sosT = -1; waveEnd = waveT; say(2, 'Alerta terminada. En la maqueta dura 30 segundos.'); paint(); }
     moving = true;
   } else {
-    s.sos = 0;
     if (C.bars) { // barrotes arriba: destellos rojos
       led = 0xff2a1f; lamp = Math.floor(now / .32) % 2 ? 1 : .12;
       moving = true;
@@ -572,7 +682,7 @@ ctl.update = (dt, now) => {
     moving = true;
   } else { busX = null; s.oled = approach(s.oled, 0, 6, dt); }
 
-  const cur = [s.night, s.lamp, s.door, s.bars, s.roof, cam.az, cam.el, cam.r, cam.tgt.x, cam.tgt.y, cam.tgt.z, busX, s.sos, s.oled, s.led];
+  const cur = [s.night, s.lamp, s.door, s.bars, s.roof, cam.az, cam.el, cam.r, cam.tgt.x, cam.tgt.y, cam.tgt.z, busX, waveT, s.oled, s.led, s.explode];
   if (cur[11] !== prev[11]) stage.shadowKey = ''; // el camión se movió: su sombra también
   if (cur.some((x, i) => x !== prev[i])) { ctl.dirty = true; moving = true; }
   return moving || cam.drag;
@@ -619,9 +729,9 @@ const ACT = {
     shoot(SHOTS.light);
   },
   sos() {
-    if (sosT >= 0) { sosT = -1; say(2, 'Alerta cancelada.'); return; }
-    sosT = 0;
-    say(2, 'Auxilio: suena el buzzer y la tira LED alterna rojo y azul.', 'alert');
+    if (sosT >= 0) { sosT = -1; waveEnd = waveT; say(2, 'Alerta cancelada.'); return; }
+    sosT = 0; waveT = 0; waveEnd = Infinity;
+    say(2, 'Auxilio: suena el buzzer y la tira LED alterna rojo y azul.', 'alert ping');
     shoot(SHOTS.sos);
   },
   door() {
@@ -649,8 +759,34 @@ const ACT = {
     shoot(SHOTS.bars);
   },
 };
+// vista explotada: la maqueta se separa por capas y la cámara se aleja para que quepa
+const exBtn = $('#exBtn');
+// encuadre de la vista explotada: a lo ancho cabe con r 49; en pantallas bajas manda el alto libre entre la barra y el panel
+function explodedShot() {
+  const c = ctl.camera, vh = THREE.MathUtils.degToRad(c.fov) / 2, half = Math.min(vh, Math.atan(Math.tan(vh) * c.aspect));
+  const free = panel.offsetTop - barEl.getBoundingClientRect().bottom;
+  const tall = ctl.h && free > 40 ? 50.5 / Math.tan(vh * .96 * Math.min(1, free / ctl.h)) : 0;
+  return { ...EXPLODED, r: Math.max(EXPLODED.r, tall * Math.sin(half)) };
+}
+function setExplode(on, fly = true) {
+  if (!!C.explode === !!on) return;
+  C.explode = on ? 1 : 0;
+  exBtn.setAttribute('aria-pressed', !!on);
+  exBtn.setAttribute('aria-label', on ? 'Armar la maqueta' : 'Vista explotada');
+  partsEl.inert = !on;
+  PARTS.forEach(p => p.b.classList.remove('on'));
+  if (on && busT >= 0) { busT = -1; busX = null; busPhase = ''; roofTmp = 0; showMap(false); paint(); }   // el camión no espera a que la armen
+  if (fly) shoot(on ? explodedShot() : HOME, 1.7);
+  invalidate(ctl);
+}
+exBtn.addEventListener('click', () => {
+  if (!stage || !stage.ready) return;
+  setExplode(!C.explode);
+  say(0, C.explode ? 'Vista explotada: toca una etiqueta para ver cada componente.' : 'Maqueta armada de nuevo.');
+});
 $$('.tile').forEach(b => b.addEventListener('click', () => {
   if (!stage || !stage.ready) return;
+  setExplode(false, false);
   ACT[b.dataset.tile](); paint(); invalidate(ctl);
 }));
 const roofBtn = $('#roofBtn');
@@ -658,10 +794,10 @@ roofBtn.addEventListener('click', () => {
   C.roof = C.roof ? 0 : 1;
   roofBtn.setAttribute('aria-pressed', !!C.roof);
   roofBtn.setAttribute('aria-label', C.roof ? 'Poner techo' : 'Quitar techo');
-  if (C.roof) shoot({ ...HOME, el: 0.72 });
+  if (C.roof && !C.explode) shoot({ ...HOME, el: 0.72 });
   invalidate(ctl);
 });
-$('#homeBtn').addEventListener('click', () => shoot(HOME));
+$('#homeBtn').addEventListener('click', () => shoot(C.explode ? explodedShot() : HOME));
 const realBtn = $('#realBtn');
 realBtn.addEventListener('click', () => {
   const on = ctl.state.real = !ctl.state.real;
@@ -673,6 +809,7 @@ realBtn.addEventListener('click', () => {
 const NODE_TILE = { light: 'lamp', sos: 'sos', door: 'door', route: 'bus', bars: 'bars' };
 function focusNode(key) {
   const n = NODES.find(x => x.key === key); if (!n) return;
+  setExplode(false, false);
   say(n.n, n.title);
   shoot(SHOTS[key]);
   const b = tiles[NODE_TILE[key]];
@@ -742,7 +879,8 @@ if (stage) {
 if (params.has('stand')) {
   let idle;
   const restart = () => {
-    Object.assign(C, { night: 1, lamp: 1, door: 0, bars: 0, roof: 0 }); sosT = busT = -1; busX = null; busPhase = ''; roofTmp = 0; showMap(false);
+    setExplode(false, false);
+    Object.assign(C, { night: 1, lamp: 1, door: 0, bars: 0, roof: 0 }); sosT = busT = waveT = -1; busX = null; busPhase = ''; roofTmp = 0; showMap(false);
     ctl.state.real = false; realBtn.setAttribute('aria-pressed', 'false');
     roofBtn.setAttribute('aria-pressed', 'false');
     say(0, 'Toca un mosaico y mira la maqueta.'); paint(); shoot(HOME);

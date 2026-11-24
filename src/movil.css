@@ -41,6 +41,11 @@ img, svg, canvas { display: block; }
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), inset 0 -1px 0 rgba(255, 255, 255, .3), 0 14px 34px rgba(22, 38, 96, .16), 0 2px 6px rgba(22, 38, 96, .06);
 }
 
+/* vidrio entintado: lleva su propio fondo oscuro, así el texto blanco se lee aunque detrás pase el cielo de día o la maqueta */
+.glass-d {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .15), rgba(255, 255, 255, .05)), rgba(13, 24, 62, .74);
+}
+
 /* barra de paradas */
 .bar {
   position: fixed; z-index: 50; top: var(--top); left: 50%; width: var(--col); height: 52px; transform: translateX(-50%);
@@ -50,7 +55,7 @@ img, svg, canvas { display: block; }
 .bar { padding: 0 5px 0 12px; gap: 8px; }
 .bar-logo { flex: none; border-radius: 8px; }
 .stops { position: relative; flex: 1; min-width: 0; height: 42px; display: flex; align-items: stretch; }
-.stops a { position: relative; z-index: 1; flex: 1 1 auto; padding: 0 6px; display: flex; align-items: center; justify-content: center; border-radius: 21px; font: 600 13px/1 var(--f-body); color: var(--txt-2); white-space: nowrap; transition: color .3s; }
+.stops a { position: relative; z-index: 1; flex: 1 1 auto; padding: 0 6px; display: flex; align-items: center; justify-content: center; border-radius: 21px; font: 600 13px/1 var(--f-body); color: #d5def0; white-space: nowrap; transition: color .3s; }
 .stops a.on { color: #fff; }
 /* lente de vidrio que se desliza a la parada activa */
 .lens {
@@ -161,14 +166,23 @@ html.model-ready .loading, html.no-3d .loading { display: none; }
 .tools { position: absolute !important; z-index: 2 !important; width: auto !important; right: max(12px, calc(50% - 228px)); top: calc(var(--top) + 68px); display: flex; flex-direction: column; gap: 8px; }
 .round { width: 44px; height: 44px; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform .15s ease; }
 .round[aria-pressed="true"] { background: #fff; color: var(--navy); border-color: #fff; }
-.panel { width: min(100% - 16px, 464px); border-radius: 34px; padding: 14px 13px 14px; }
-.status { min-height: 48px; padding: 0 3px; display: flex; align-items: center; gap: 12px; }
+/* pantallas bajas: los botones van de dos en dos, así queda lugar para las etiquetas de la vista explotada */
+@media (max-height: 720px) { .tools { display: grid; grid-template-columns: 44px 44px; } }
+/* el aviso mide siempre lo mismo (dos renglones de texto): el panel no cambia de alto al tocar un mosaico */
+.panel { --st-h: 56px; width: min(100% - 16px, 464px); border-radius: 34px; padding: 14px 13px 14px; }
+.status { height: var(--st-h); padding: 0 3px; display: flex; align-items: center; gap: 12px; }
 .st-ic { width: 44px; height: 44px; flex: none; border-radius: 15px; display: flex; align-items: center; justify-content: center; color: #fff; background: linear-gradient(160deg, #5aa8ff, var(--blue)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .5), 0 6px 16px rgba(38, 125, 192, .45); transition: background .3s; }
-.st-tx { min-width: 0; }
-.st-tx i { display: block; font: 600 11px/14px var(--f-body); font-style: normal; letter-spacing: .07em; text-transform: uppercase; color: #9ccbf5; }
-.st-tx p { margin-top: 2px; font: 600 14.5px/19px var(--f-body); letter-spacing: -.005em; }
+.st-tx { min-width: 0; max-height: var(--st-h); overflow: hidden; }
+.st-tx i { display: block; font: 600 11px/14px var(--f-body); font-style: normal; letter-spacing: .07em; text-transform: uppercase; color: #a9d3f8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-tx p { margin-top: 2px; font: 600 14.5px/19px var(--f-body); letter-spacing: -.005em; text-wrap: pretty; }
+@media (max-width: 374px) { .panel { --st-h: 66px; } .st-tx p { font-size: 13.5px; line-height: 16px; } }
 .status.alert .st-ic { background: linear-gradient(160deg, #ff8a6b, #f0483b); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .5), 0 6px 16px rgba(255, 107, 94, .45); }
 .status.alert .st-tx i { color: #ffc2bb; }
+.st-ic { position: relative; }
+/* auxilio: el icono del aviso suelta ondas mientras dura la alerta */
+.status.ping .st-ic::before, .status.ping .st-ic::after { content: ""; position: absolute; inset: 0; border-radius: inherit; border: 2px solid #ff8a7f; opacity: 0; pointer-events: none; animation: ping 1.7s cubic-bezier(.2, .6, .35, 1) 3; }
+.status.ping .st-ic::after { animation-delay: .56s; }
+@keyframes ping { 0% { transform: scale(1); opacity: .9; } 100% { transform: scale(1.75); opacity: 0; } }
 .status.pop .st-tx { animation: pop .35s ease; }
 .status.pop .st-ic { animation: bump .4s ease; }
 @keyframes pop { from { opacity: 0; transform: translateY(5px); } }
@@ -178,7 +192,7 @@ html.model-ready .loading, html.no-3d .loading { display: none; }
 .tiles { transition: opacity .3s ease; }
 .panel.mapping .tiles { opacity: 0; pointer-events: none; }
 .map {
-  position: absolute; z-index: 2; left: 13px; right: 13px; top: 74px; bottom: 14px; padding: 12px 12px 8px; border: 1px solid rgba(255, 255, 255, .16); border-radius: 24px;
+  position: absolute; z-index: 2; left: 13px; right: 13px; top: calc(26px + var(--st-h)); bottom: 14px; padding: 12px 12px 8px; border: 1px solid rgba(255, 255, 255, .16); border-radius: 24px;
   background: rgba(8, 15, 40, .62); color: #fff; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 4px;
   opacity: 0; pointer-events: none; transform: scale(.97); transition: opacity .35s ease, transform .35s ease;
 }
@@ -198,24 +212,49 @@ html.model-ready .loading, html.no-3d .loading { display: none; }
 .tile {
   height: 98px; padding: 12px; border-radius: 24px; border: 1px solid rgba(255, 255, 255, .18); background: rgba(255, 255, 255, .1); color: #fff;
   display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; text-align: left; cursor: pointer;
+  position: relative; overflow: hidden; min-width: 0;
   transition: background .25s, color .25s, border-color .25s, box-shadow .25s, transform .15s ease;
 }
+.tile > span { position: relative; z-index: 1; }
 .tile b { display: block; font: 700 15px/19px var(--f-body); }
-.tile i { display: block; font: 500 12.5px/16px var(--f-body); font-style: normal; color: var(--txt-2); white-space: nowrap; }
+.tile i { display: block; font: 500 12.5px/16px var(--f-body); font-style: normal; color: #d0daee; white-space: nowrap; }
 .tile .fill { fill: none; }
 .tile[data-tile="sos"] .tile-ic { color: #ff8a7f; }
 .tile.act { background: #fff; border-color: #fff; color: var(--navy); box-shadow: 0 8px 24px rgba(127, 182, 255, .35); }
 .tile.act i { color: #3d4960; }
 .tile.act .fill { fill: #ffd66b; }
-.tile.act.alert { background: var(--red); border-color: var(--red); color: var(--night); box-shadow: 0 8px 24px rgba(255, 107, 94, .45); animation: beat .56s steps(2, jump-none) infinite; }
+/* auxilio: el mosaico queda en rojo, la campana suena y de ella salen ondas que crecen y se apagan (como las de la maqueta) */
+.tile.act.alert { background: var(--red); border-color: var(--red); color: var(--night); box-shadow: 0 8px 24px rgba(255, 107, 94, .45); animation: throb 1.12s ease-in-out infinite; }
 .tile.act.alert i, .tile.act.alert .tile-ic { color: var(--night); }
-@keyframes beat { to { background: #4d86ff; border-color: #4d86ff; box-shadow: 0 8px 24px rgba(77, 134, 255, .45); } }
+.tile.act.alert::before, .tile.act.alert::after {
+  content: ""; position: absolute; left: 23px; top: 23px; width: 26px; height: 26px; margin: -13px; border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, .95); background: rgba(255, 255, 255, .16); opacity: 0; pointer-events: none;
+  animation: ripple 1.68s cubic-bezier(.2, .6, .35, 1) infinite;
+}
+.tile.act.alert::after { animation-delay: .84s; }
+.tile.act.alert .tile-ic { transform-origin: 50% 10%; animation: ring .56s ease-in-out infinite; }
+@keyframes ripple { 0% { transform: scale(.6); opacity: 0; } 12% { opacity: .9; } 100% { transform: scale(6.4); opacity: 0; } }
+@keyframes ring { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-13deg); } 75% { transform: rotate(13deg); } }
+@keyframes throb { 50% { box-shadow: 0 8px 30px rgba(255, 107, 94, .8), 0 0 0 3px rgba(255, 107, 94, .28); } }
 .tile.blocked i { color: #ffc2bb; }
 .tile.deny { animation: deny .36s ease; }
 @keyframes deny { 20% { transform: translateX(-5px); } 45% { transform: translateX(5px); } 70% { transform: translateX(-3px); } }
 .tile.hint { animation: hint 1.6s ease; }
 @keyframes hint { 15%, 60% { box-shadow: 0 0 0 3px var(--sky), 0 0 26px rgba(127, 182, 255, .8); } }
-@media (max-width: 359px) { .tile { padding: 10px; height: 92px; } .tile i { font-size: 11.5px; } }
+@media (max-width: 359px) { .tile { padding: 10px; height: 92px; } .tile i { font-size: 11.5px; } .tile.act.alert::before, .tile.act.alert::after { left: 21px; top: 21px; } }
+/* vista explotada: etiquetas de los componentes sobre la maqueta */
+.parts { position: absolute; inset: 0; z-index: 1; overflow: hidden; opacity: 0; visibility: hidden; pointer-events: none; }
+.parts svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.parts line { stroke: rgba(255, 255, 255, .85); stroke-width: 1.25; stroke-linecap: round; }
+.part-dot { position: absolute; left: 0; top: 0; width: 9px; height: 9px; margin: -4.5px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 3px rgba(22, 38, 96, .55), 0 0 10px rgba(127, 182, 255, .9); }
+.part {
+  position: absolute; left: 0; top: 0; height: 26px; padding: 0 10px 0 3px; border-radius: 13px; display: flex; align-items: center; gap: 7px;
+  border: 1px solid rgba(255, 255, 255, .26); background: rgba(13, 24, 62, .86); color: #fff; font: 600 12.5px/1 var(--f-body); white-space: nowrap;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, .3); cursor: pointer; pointer-events: auto; transition: background .2s, color .2s, border-color .2s;
+}
+.part b { width: 20px; height: 20px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: linear-gradient(160deg, #5aa8ff, var(--blue)); font: 700 11.5px/1 var(--f-body); color: #fff; }
+.part.on { background: #fff; border-color: #fff; color: var(--navy); }
+.part::after { content: ""; position: absolute; inset: -4px; }
 
 /* Equipo: amanece */
 .team {
