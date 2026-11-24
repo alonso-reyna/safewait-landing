@@ -37,10 +37,6 @@ const I = {
   bus: '<path d="M5 17V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v11z"/><path d="M5 11h14"/><path d="M8 17v3"/><path d="M16 17v3"/>',
   bars: '<path d="M3 4h18"/><path d="M6 4v16"/><path d="M10 4v16"/><path d="M14 4v16"/><path d="M18 4v16"/>',
   roof: '<path d="M3 11l9-7 9 7"/><path d="M6 14v6h12v-6"/>',
-  reset: '<path d="M4 5v5h5"/><path d="M5 10a8 8 0 1 1 2 7"/>',
-  ext: '<path d="M14 5h5v5"/><path d="M19 5l-8 8"/><path d="M12 7H6v11h11v-6"/>',
-  nodes: '<path d="M4 12h16"/><circle cx="4" cy="12" r="2.2" fill="currentColor"/><circle cx="12" cy="12" r="2.2" fill="currentColor"/><circle cx="20" cy="12" r="2.2" fill="currentColor"/>',
-  chev: '<path d="M6 6l6 6-6 6"/><path d="M13 6l6 6-6 6"/>',
   cap: '<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11.5V16c2 2 10 2 12 0v-4.5"/>',
   hand: '<path d="M12 12V4.5a1.5 1.5 0 0 1 3 0V11"/><path d="M15 11V7.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1a6 6 0 0 1-5-2.7L3.6 14a1.5 1.5 0 0 1 2.5-1.6L8 15V6.500a1.5 1.5 0 0 1 3 0V11"/>',
   layers: '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/><path d="M3 17.500l9 5 9-5"/>',
@@ -51,42 +47,34 @@ const I = {
 const ic = (k, s = 22) => `<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${I[k]}</svg>`;
 
 /* ---------- contenido ---------- */
-const STOPS = [['inicio', 'Inicio'], ['porque', 'Por qué'], ['nodos', 'Nodos'], ['equipo', 'Equipo']];
-// datos del problema como tiras de LED: [encendidas, total, cifra, texto destacado, resto]
-const FACTS = [
-  [5.59, 10, '55.9', '6', 'de cada<br>10', 'personas dicen que falta alumbrado público en su ciudad.'],
-  [2, 3, '66.6', '2', 'de cada<br>3', 'mujeres se sienten inseguras en el transporte público.'],
-  [1, 5, '22.1', '1', 'de cada<br>5', 'sufrió acoso o violencia sexual en público en seis meses.'],
-];
-const DOES = [['light', 'bulb', 'Luz que se enciende sola'], ['sos', 'bell', 'Botón de auxilio'], ['door', 'door', 'Puerta con tarjeta'], ['route', 'bus', 'Aviso de la ruta que llega'], ['bars', 'bars', 'Barrotes de emergencia']];
+const STOPS = [['inicio', 'Inicio'], ['nodos', 'Nodos'], ['equipo', 'Equipo']];
 const TILES = [['night', 'moon', 'Noche'], ['lamp', 'bulb', 'Luz'], ['sos', 'bell', 'SOS'], ['door', 'door', 'Puerta'], ['bus', 'bus', 'Camión'], ['bars', 'bars', 'Barrotes']];
 const FLOW = ['Sensor', 'NodeMCU', 'API Flask', 'MySQL', 'Looker'];
-const SOURCE = 'https://www.inegi.org.mx/contenidos/saladeprensa/boletines/2026/ensu/ENSU2026_10_RR.pdf';
 
-const fact = ([on, total, pct, big, of, text]) => {
-  let h = '';
-  for (let i = 0; i < total; i++) { const k = clamp(on - i); h += `<i${k > 0 ? ` class="on" style="--k:${k < 1 ? .5 : 1}"` : ''}></i>`; }
-  return `<li class="fact glass"><div class="fact-row"><b>${big}<small>${of}</small></b><p>${text}</p></div><div class="segs" role="img" aria-label="${pct} por ciento">${h}</div></li>`;
-};
 // rutas del nodo 4: el sensor clasifica seis colores (Arduino_Reto_Josue.ino) y cada color es una ruta de la tabla rutas
 const LC = { 1: '#ff6a5e', 2: '#4d94ff', 3: '#3fca84' };
+// las que llegan a la parada, en el orden en que las trae el mosaico Camión. rgb: lectura de ejemplo del sensor; hex y dark: franjas del camión.
+// to (destino) solo donde el proyecto ya lo tenía; sign: letrero del camión
+const ROUTES = [
+  { n: 2, line: 'azul', word: 'AZUL', to: 'Rancho IoT', sign: '2  RANCHO IOT', rgb: [24, 96, 231], hex: 0x267dc0, dark: 0x162660 },
+  { n: 1, line: 'roja', word: 'ROJO', to: '', sign: '1  ROJA', rgb: [231, 52, 40], hex: 0xd63a2e, dark: 0x8a1f17 },
+];
 const bul = (x, y, n) => `<circle cx="${x}" cy="${y}" r="10" fill="${LC[n]}"/><text class="num" x="${x}" y="${y + 4}">${n}</text>`;
-const stn = (x, y) => `<circle cx="${x}" cy="${y}" r="5" fill="#0b1433" stroke="${LC[2]}" stroke-width="3"/>`;
-// plano tipo metro: la ruta que llegó y dos vecinas. Cada línea va en un grupo con su círculo, así la transparencia no marca el empalme
-const MAP = `<svg viewBox="0 0 346 168" role="img" aria-label="Mapa simulado de rutas; la Ruta 2, azul, es la que llegó a SafeWait">
-  <g class="dim"><path class="ln" stroke="${LC[1]}" stroke-width="7" d="M22 34H104L140 70H206L246 110H326"/>${bul(22, 34, 1)}</g>
-  <g class="dim"><path class="ln" stroke="${LC[3]}" stroke-width="7" d="M70 150V118L98 90H250L286 126V156"/>${bul(70, 150, 3)}</g>
-  <path class="ln" stroke="${LC[2]}" stroke-width="8" d="M22 126H88L134 80H232L266 46H322"/>
-  ${stn(88, 126)}${stn(232, 80)}${bul(22, 126, 2)}${bul(322, 46, 2)}
+const stn = (x, y, n) => `<circle cx="${x}" cy="${y}" r="5" fill="#0b1433" stroke="${LC[n]}" stroke-width="3"/>`;
+// plano tipo metro: tres líneas que pasan por SafeWait; la que llegó va resaltada y encima. Cada línea va en un grupo con sus círculos, así la transparencia no marca el empalme
+const MAP = `<svg viewBox="0 0 346 168" role="img">
+  <g data-line="3" class="dim"><path class="ln" stroke="${LC[3]}" stroke-width="7" d="M70 150V118L98 90H250L286 126V156"/>${bul(70, 150, 3)}</g>
+  <g data-line="1" class="dim"><path class="ln" stroke="${LC[1]}" stroke-width="7" d="M22 34H104L140 70H206L246 110H326"/>${stn(104, 34, 1)}${stn(246, 110, 1)}${bul(22, 34, 1)}${bul(326, 110, 1)}</g>
+  <g data-line="2" class="dim"><path class="ln" stroke="${LC[2]}" stroke-width="7" d="M22 126H88L134 80H232L266 46H322"/>${stn(88, 126, 2)}${stn(232, 80, 2)}${bul(22, 126, 2)}${bul(322, 46, 2)}</g>
   <rect x="164" y="60" width="18" height="40" rx="9" fill="#fff"/>
   <text class="lbl" x="173" y="52">SafeWait</text>
-  <text class="sub" x="322" y="26">Rancho IoT</text>
+  <text class="sub" data-line="2" x="322" y="26">Rancho IoT</text>
 </svg>`;
 
 const app = document.createElement('div');
 app.id = 'app';
 app.innerHTML = `
-<a class="skip" href="#porque">Saltar al contenido</a>
+<a class="skip" href="#nodos">Saltar al contenido</a>
 <nav class="bar glass glass-d" aria-label="Secciones">
   <a class="bar-logo" href="#inicio" aria-label="SafeWait, ir al inicio"><img src="/safewait-logo.svg" alt="" width="28" height="28"></a>
   <div class="stops"><span class="lens" aria-hidden="true"></span>${STOPS.map(([id, t]) => `<a href="#${id}" data-stop="${id}">${t}</a>`).join('')}</div>
@@ -95,40 +83,14 @@ app.innerHTML = `
 <main>
   <section class="scr hero" id="inicio" data-section="inicio">
     <div class="glow" aria-hidden="true"></div>
-    <div class="view" id="v-hero" role="img" aria-label="Maqueta del paradero de noche, con la luz de la caseta encendida"><canvas></canvas><span class="loading" aria-hidden="true"></span></div>
+    <div class="view" id="v-hero" role="img" aria-label="Maqueta del paradero de noche, con la luz de la caseta encendida"><canvas></canvas></div>
     <header class="hero-head">
       <h1><img src="/safewait-logo.svg" alt="" width="48" height="48">SafeWait</h1>
       <p>Esperar ya no es un riesgo.</p>
     </header>
     <div class="card glass">
       <p>Un paradero inteligente, seguro y funcional.</p>
-      <div class="card-row">
-        <a class="btn btn-w" href="#porque">${ic('moon', 18)}El problema</a>
-        <a class="btn glass" href="#nodos">${ic('nodes', 20)}Ver los 5 nodos</a>
-      </div>
-    </div>
-  </section>
-
-  <section class="scr why" id="porque" data-section="porque">
-    <div class="glow" aria-hidden="true"></div>
-    <div class="view" id="v-why" role="img" aria-label="Maqueta del paradero a oscuras"><canvas></canvas></div>
-    <div class="slide glass" id="slide">
-      <span class="slide-fill" aria-hidden="true"></span>
-      <span class="slide-label slide-off" aria-hidden="true">Desliza para encender la luz</span>
-      <span class="slide-label slide-on" aria-hidden="true">Luz encendida</span>
-      <span class="slide-chev" aria-hidden="true">${ic('chev', 24)}</span>
-      <button type="button" class="knob" id="knob" role="switch" aria-checked="false" aria-label="Encender la luz">${ic('bulb', 24)}</button>
-    </div>
-    <div class="why-body">
-      <div class="pane pane-dark">
-        <h2>Esperar el camión de noche es un riesgo.</h2>
-        <ul class="facts">${FACTS.map(fact).join('')}</ul>
-        <a class="pill" href="${SOURCE}" target="_blank" rel="noopener">${ic('ext', 16)}Fuente: INEGI, ENSU 2026</a>
-      </div>
-      <div class="pane pane-lit" inert>
-        <h2>Un paradero que cuida a quien espera.</h2>
-        <ul class="does">${DOES.map(([k, icon, t]) => `<li><a href="#nodos" data-node="${k}"><span class="ico">${ic(icon, 18)}</span>${t}</a></li>`).join('')}</ul>
-      </div>
+      <a class="btn btn-w" href="#nodos">${ic('hand', 20)}Simulador</a>
     </div>
   </section>
 
@@ -139,12 +101,11 @@ app.innerHTML = `
       <button type="button" class="round glass glass-d" id="exBtn" aria-pressed="false" aria-label="Vista explotada">${ic('explode', 20)}</button>
       <button type="button" class="round glass glass-d" id="roofBtn" aria-pressed="false" aria-label="Quitar techo">${ic('roof', 20)}</button>
       <button type="button" class="round glass glass-d" id="realBtn" aria-pressed="false" aria-label="Materiales reales">${ic('layers', 20)}</button>
-      <button type="button" class="round glass glass-d" id="homeBtn" aria-label="Vista inicial">${ic('reset', 20)}</button>
     </div>
     <section class="panel glass glass-d" aria-label="Centro de control">
       <div class="status" id="status" aria-live="polite"></div>
       <button type="button" class="map" id="map" aria-label="Cerrar el mapa de rutas" tabindex="-1">
-        <span class="map-head"><span class="map-n">2</span><span><b>Llegó la Ruta 2</b><i>Línea azul, a Rancho IoT</i></span><span class="map-x">${ic('x', 18)}</span></span>
+        <span class="map-head"><span class="map-n"></span><span><b></b><i></i></span><span class="map-x">${ic('x', 18)}</span></span>
         ${MAP}
       </button>
       <div class="tiles">${TILES.map(([k, icon, t]) => `<button type="button" class="tile" data-tile="${k}" aria-pressed="false"><span class="tile-ic">${ic(icon)}</span><span><b>${t}</b><i></i></span></button>`).join('')}</div>
@@ -159,10 +120,7 @@ app.innerHTML = `
     </ul>
     <h2 class="flow-title">Del sensor al dashboard</h2>
     <div class="flow glass-l"><ol>${FLOW.map(t => `<li><span></span>${t}</li>`).join('')}</ol></div>
-    <div class="links">
-      ${CONFIG.lookerUrl ? `<a class="btn glass-l" href="${CONFIG.lookerUrl}" target="_blank" rel="noopener">${ic('chart', 18)}Ver dashboard</a>` : ''}
-      <a class="btn glass-l" href="https://github.com/alonso-reyna/safewait-landing" target="_blank" rel="noopener">${ic('ext', 18)}Código en GitHub</a>
-    </div>
+    ${CONFIG.lookerUrl ? `<div class="links"><a class="btn glass-l" href="${CONFIG.lookerUrl}" target="_blank" rel="noopener">${ic('chart', 18)}Ver dashboard</a></div>` : ''}
   </section>
 </main>`;
 [...document.body.children].forEach(n => { if (!/^(SCRIPT|STYLE|LINK)$/.test(n.tagName)) n.remove(); });
@@ -173,6 +131,17 @@ const setTheme = light => {
   if (themeMeta) themeMeta.content = light ? '#f4f8fc' : '#0b1433';
 };
 setTheme(false);
+
+// Mientras llega el modelo no hay rueda de espera: el resplandor de la caseta late donde va a aparecer.
+// Cuando el 3D está listo (o si no hay 3D), sube desde donde iba hasta su brillo normal.
+const heroGlowEl = $('.hero .glow');
+let breath = !reduceMotion && heroGlowEl.animate ? heroGlowEl.animate([{ opacity: .2 }, { opacity: .62 }, { opacity: .2 }], { duration: 2600, iterations: Infinity, easing: 'ease-in-out' }) : null;
+function glowReady() {
+  if (!breath) return;
+  const from = getComputedStyle(heroGlowEl).opacity;
+  breath.cancel(); breath = null;
+  heroGlowEl.animate([{ opacity: from }, { opacity: 1 }], { duration: 900, easing: 'ease-out' });
+}
 
 /* ---------- barra de paradas ---------- */
 const stopLinks = $$('.stops a'), lens = $('.lens');
@@ -207,20 +176,19 @@ app.addEventListener('click', e => {
   const a = e.target.closest('a[href^="#"]'); if (!a) return;
   e.preventDefault();
   goTo(a.getAttribute('href').slice(1));
-  if (a.dataset.node) focusNode(a.dataset.node);
 });
 
 /* ---------- escena ---------- */
 let stage = null, details = null;
 const gl = document.createElement('canvas');
-try { stage = new Stage(gl, { mobile: true, reduceMotion, offscreen: true, dpr: Math.min(window.devicePixelRatio || 1, 2) }); } catch (err) { console.error(err); }
-function no3D() { stage = null; document.documentElement.classList.add('no-3d'); }
+try { stage = new Stage(gl, { mobile: true, reduceMotion, offscreen: true, dpr: Math.min(window.devicePixelRatio || 1, 2), intro: 'explode' }); } catch (err) { console.error(err); }
+function no3D() { stage = null; document.documentElement.classList.add('no-3d'); glowReady(); }
 if (!stage) no3D();
 
 // maqueta de los videos: azul claro de un solo tono, puertas con retícula, keypad de membrana, banca y pinitos
 const TONE = { wall: 0x6ab2f2, frame: 0x7cbdf5, floor: 0x58a5ea, base: 0x5aa8ec, grass: 0x4c98df, corner: 0x3d88d2, door: 0xf2f8fe, pcb: 0x1a4c80, fsr: 0x162660, bars: 0x6ab2f2, keypad: 0x58a5ea, pulley: 0x4c98df, guide: 0x58a5ea };
 const EDGE = new THREE.Color(0x3f86c9);
-let doorMat = null, doorMatR = null, bus = null, realNow = false, swapReal = () => {}, spread = () => {}, sosFx = () => {};
+let doorMat = null, doorMatR = null, bus = null, realNow = false, swapReal = () => {}, spread = () => {}, sosFx = () => {}, drawOled = () => {};
 let SOS_AT = V(FSR.x, 21.36, CAD.backInnerZ + 2.4), exNow = 0, exNight = 0;
 const EDGE_X = new THREE.Color(0x17407f), EDGE_XN = new THREE.Color(0x8fc2ff);
 const EDGE_R = new THREE.Color(0x6b4a2a);
@@ -262,14 +230,21 @@ if (stage) {
       m.position.set(FSR.x, SOS_P.y - 0.01, CAD.backInnerZ + 0.06 + 0.85);
     }
   }
-  { // pantalla OLED: lo mismo que dibuja el nodo (mostrar() en Arduino_Reto_Josue.ino)
-    const c = stage.oledTex.image, g = c.getContext('2d'), w = c.width, h = c.height;
-    g.fillStyle = '#000'; g.fillRect(0, 0, w, h);
-    g.fillStyle = '#bfe4ff'; g.textAlign = 'left'; g.textBaseline = 'top';
-    g.font = '600 21px ui-monospace, Menlo, Consolas, monospace'; g.fillText('Color detectado:', 8, 8);
-    g.font = '700 50px ui-monospace, Menlo, Consolas, monospace'; g.fillText('AZUL', 8, 38);
-    g.font = '600 21px ui-monospace, Menlo, Consolas, monospace'; g.fillText('R:24 G:96 B:231', 8, 98);
-    stage.oledTex.needsUpdate = true;
+  { // pantalla OLED: los tres renglones que dibuja el nodo (mostrar() en Arduino_Reto_Josue.ino), solo texto y en un tono, como la pantalla real
+    const c = stage.oledTex.image, K = 2, w = c.width, h = c.height;
+    c.width = w * K; c.height = h * K;   // al doble: la cámara se le acerca mucho
+    const SANS = '"Inter Variable", Inter, system-ui, sans-serif', HEAD = '"Inter Tight Variable", "Inter Tight", system-ui, sans-serif';
+    drawOled = r => {
+      const g = c.getContext('2d');
+      g.setTransform(K, 0, 0, K, 0, 0);
+      g.fillStyle = '#000'; g.fillRect(0, 0, w, h);
+      g.textBaseline = 'alphabetic'; g.textAlign = 'left';
+      g.fillStyle = '#9fd0f5'; g.font = `500 17px ${SANS}`; g.fillText('Color detectado:', 12, 27);
+      g.fillStyle = '#eaf6ff'; g.font = `700 54px ${HEAD}`; g.fillText(r.word, 10, 82);
+      g.fillStyle = '#9fd0f5'; g.font = `500 17px ${SANS}`; g.fillText(`R:${r.rgb[0]}  G:${r.rgb[1]}  B:${r.rgb[2]}`, 12, 113);
+      stage.oledTex.needsUpdate = true;
+    };
+    drawOled(ROUTES[0]);
   }
   details = buildDetails(stage);
   const detailsR = buildDetails(stage, { tone: 0xd8bf96, leaf: 0x4f8a3c, trunk: 0x7a5a3a, real: true });
@@ -285,7 +260,7 @@ if (stage) {
     for (const m of doorSync.mats) m.color.setHex(real ? 0x2b2320 : 0x162660);
   };
   // camión del video: llega por la derecha, hacia −x; la toma de la ruta deja los bordes de la maqueta fuera de cuadro
-  bus = makeBus({ clipX: 1e5, mirror: true, route: '2  RANCHO IOT' });
+  bus = makeBus({ clipX: 1e5, mirror: true, route: ROUTES[0].sign });
   bus.group.position.set(0, CAD.baseTop, CAD.streetZ);
   bus.group.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   stage.root.add(bus.group);
@@ -371,7 +346,7 @@ function frame(now) {
   if (!stage || !stage.ready) { last = 0; return; }
   let again = false;
   if (!stage.asm.done) { stage.step(dt); again = true; views.forEach(v => { v.dirty = true; }); }
-  details.update(stage.asm.t < 0 ? 99 : stage.asm.t, 1);
+  details.update(99, 1);   // la entrada junta la maqueta ya dibujada: los detalles no se revelan con plano de corte
   let pre = false;
   for (const v of views) {
     if (!v.shown) {
@@ -433,8 +408,8 @@ hero.onFrame = v => {
   const box = heroBox || { cx: v.w / 2, cy: v.h / 2, w: v.w * 1.2, h: v.h * .5 };
   const a = HERO_FRONT + Math.sin(heroT * Math.PI * 2 / 50) * 0.14;
   fitBox(v.camera, v.w, v.h, box, HERO_FRONT, a, 0.5);
-  if (doorMat) doorMat.emissiveIntensity = .5;
-  swapReal(false); if (bus) bus.setX(null); spread(0); sosFx(-1);
+  if (doorMat) { doorMat.emissive.setHex(0xcfe6ff); doorMat.emissiveIntensity = .5; }
+  swapReal(false); if (bus) bus.setX(null); spread(stage.asm.ex); sosFx(-1);
   if (!heroGlow) { heroGlow = true; glowAt(v, heroSec); }
 };
 hero.update = dt => {
@@ -443,71 +418,6 @@ hero.update = dt => {
   if (heroAcc >= 1 / 31) { heroAcc = 0; hero.dirty = true; } // mecerse despacio no pide más de 30 cuadros por segundo
   return true;
 };
-
-/* ---------- Por qué: a oscuras; el control deslizable enciende la luz de la caseta ---------- */
-const whySec = $('#porque'), why = makeView('#v-why');
-Object.assign(why.state, { plinth: false, night: 1, lamp: 0, dark: .35 });
-let luz = 0, luzGoal = null, whyGlow = false;
-why.onFrame = v => {
-  fitBox(v.camera, v.w, v.h, { cx: v.w / 2, cy: v.h * .5, w: v.w * .94, h: v.h * .78 }, 0.46, 0.46 - luz * .1, 0.3);
-  v.state.lamp = luz;
-  if (doorMat) doorMat.emissiveIntensity = luz * .5;
-  swapReal(false); if (bus) bus.setX(null); spread(0); sosFx(-1);
-  if (!whyGlow) { whyGlow = true; glowAt(v, whySec); }
-};
-const knob = $('#knob'), slide = $('#slide'), paneDark = $('.pane-dark'), paneLit = $('.pane-lit');
-let lit = false, travel = 0;
-new ResizeObserver(() => { travel = Math.max(0, slide.clientWidth - knob.offsetWidth - 12); setLuz(luz); }).observe(slide);
-function setLuz(p) {
-  luz = clamp(p);
-  whySec.style.setProperty('--luz', luz.toFixed(3));
-  knob.style.transform = `translateX(${(luz * travel).toFixed(1)}px)`;
-  whySec.style.setProperty('--a', (1 - ramp(luz, .3, .6)).toFixed(3));
-  whySec.style.setProperty('--b', ramp(luz, .55, .9).toFixed(3));
-  const on = luz > .6;
-  if (on !== lit) {
-    lit = on;
-    whySec.classList.toggle('lit', on);
-    paneDark.inert = on; paneLit.inert = !on;
-    knob.setAttribute('aria-checked', on);
-    knob.setAttribute('aria-label', on ? 'Apagar la luz' : 'Encender la luz');
-    $('#v-why').setAttribute('aria-label', on ? 'Maqueta del paradero con la luz de la caseta encendida' : 'Maqueta del paradero a oscuras');
-  }
-  invalidate(why);
-}
-why.update = dt => {
-  if (luzGoal == null) return false;
-  if (reduceMotion) { setLuz(luzGoal); luzGoal = null; return false; }
-  const next = luz + Math.sign(luzGoal - luz) * dt * 2.4;
-  if ((luzGoal - luz) * (luzGoal - next) <= 0) { setLuz(luzGoal); luzGoal = null; return false; }
-  setLuz(next);
-  return true;
-};
-const luzTo = g => { luzGoal = g; invalidate(why); };
-{
-  let drag = null;
-  knob.addEventListener('pointerdown', e => {
-    drag = { x: e.clientX, p0: luz, moved: false };
-    luzGoal = null;
-    knob.setPointerCapture(e.pointerId);
-  });
-  knob.addEventListener('pointermove', e => {
-    if (!drag) return;
-    const dx = e.clientX - drag.x;
-    if (Math.abs(dx) > 4) drag.moved = true;
-    if (drag.moved) setLuz(drag.p0 + dx / Math.max(1, travel));
-  });
-  const end = () => {
-    if (!drag) return;
-    const moved = drag.moved; drag = null;
-    if (moved) { luzTo(luz > .5 ? 1 : 0); knob.dataset.skip = '1'; setTimeout(() => { delete knob.dataset.skip; }, 0); }
-  };
-  knob.addEventListener('pointerup', end);
-  knob.addEventListener('pointercancel', end);
-  // toque o teclado: alterna
-  knob.addEventListener('click', () => { if (!knob.dataset.skip) luzTo(luz > .5 ? 0 : 1); });
-}
-setLuz(0);
 
 /* ---------- Nodos: centro de control ---------- */
 const ctlSec = $('#nodos'), ctl = makeView('#v-ctl');
@@ -540,19 +450,40 @@ const EXPLODED = { tgt: V(-1, 37, -2), az: 0.6, el: 0.3, r: 49 };
 const C = { night: 1, lamp: 1, door: 0, bars: 0, roof: 0, explode: 0 };     // metas (0 o 1)
 let waveT = -1, waveEnd = Infinity;   // reloj de las ondas del SOS: siguen un momento después de que la alerta termina
 let sosT = -1, busT = -1, busPhase = '', busMark = 0, busX = null, roofTmp = 0, mapClose = false;
-const SOS_DUR = 6, BUS = { in: 2.6, zoom: 2.3, map: 7, out: 2.4, far: 82, stop: 15 };
+// el mapa se queda poco tiempo: mientras está abierto tapa los mosaicos
+const SOS_DUR = 6, BUS = { in: 2.2, zoom: 1.7, map: 3.4, out: 2, far: 82, stop: 15 };
+const SOS_RED = 0xff2a1f, SOS_BLUE = 0x1436ff;   // azul eléctrico: la maqueta ya es azul claro y el de siempre no se distinguía
+let routeI = -1, route = ROUTES[0];
 const mapEl = $('#map'), panel = $('.panel');
 function showMap(on) { panel.classList.toggle('mapping', on); mapEl.tabIndex = on ? 0 : -1; }
+// ruta que llega: letrero y franjas del camión, pantalla OLED y línea resaltada en el mapa
+function setRoute(i) {
+  routeI = i; route = ROUTES[i];
+  if (bus) bus.setRoute(route.sign, route.hex, route.dark);
+  drawOled(route);
+  const svg = $('svg[role="img"]', mapEl), on = $(`g[data-line="${route.n}"]`, svg);
+  $$('g[data-line]', svg).forEach(g => g.classList.toggle('dim', g !== on));
+  svg.insertBefore(on, $('rect', svg));   // la línea que llegó se dibuja encima de las otras
+  $$('.sub', svg).forEach(t => { t.style.display = t.dataset.line === String(route.n) ? '' : 'none'; });
+  svg.setAttribute('aria-label', `Mapa simulado de rutas; la Ruta ${route.n}, ${route.line}, es la que llegó a SafeWait`);
+  mapEl.style.setProperty('--rc', LC[route.n]);
+  $('.map-n', mapEl).textContent = route.n;
+  $('.map-head b', mapEl).textContent = `Llegó la Ruta ${route.n}`;
+  $('.map-head i', mapEl).textContent = `Línea ${route.line}${route.to ? `, a ${route.to}` : ''}`;
+}
+setRoute(0); routeI = -1;   // el primer camión es el de la Ruta 2, azul
 mapEl.addEventListener('click', () => { mapClose = true; invalidate(ctl); });
 Object.assign(ctl.state, { night: 1, lamp: 1, dark: 1 });
 ctl.onFrame = v => {
   const c = v.camera;
   c.clearViewOffset(); c.updateProjectionMatrix();
   orbit(c, cam.tgt, cam.az, cam.el, fitDist(c, cam.r));
-  if (doorMat) doorMat.emissiveIntensity = v.state.lamp * v.state.night * .5;
-  if (doorMatR) doorMatR.emissiveIntensity = v.state.lamp * v.state.night * .5;
+  // las puertas de papel dejan pasar la luz de adentro; en una alerta toman su color, también de día
+  const led = v.state.led, glow = led != null ? Math.min(1.1, .45 + v.state.lamp * .3) : v.state.lamp * v.state.night * .5;
+  if (doorMat) { doorMat.emissive.setHex(led ?? 0xcfe6ff); doorMat.emissiveIntensity = glow; }
+  if (doorMatR) { doorMatR.emissive.setHex(led ?? 0xfff0d0); doorMatR.emissiveIntensity = glow; }
   swapReal(v.state.real); if (bus) bus.setX(busX);
-  spread(v.state.explode, v.state.night); sosFx(waveT, waveEnd, v.state.explode);
+  spread(stage.exOf(v.state), v.state.night); sosFx(waveT, waveEnd, v.state.explode);
   placeParts(v);
 };
 
@@ -582,7 +513,7 @@ const PARTS = [
   });
   return part;
 });
-const PART_H = 26, barEl = $('.bar'), toolsEl = $('.tools');
+const PART_H = 26, barEl = $('.bar'), exBtnEl = $('#exBtn');
 function placeParts(v) {
   const e = v.state.explode, a = ramp(e, .72, 1);
   partsEl.style.opacity = a.toFixed(3);
@@ -590,7 +521,7 @@ function placeParts(v) {
   if (a <= 0 || !v.w) return;
   // el punto va sobre el componente; las etiquetas se acomodan en dos columnas, a los lados de la maqueta, sin encimarse
   const y0 = v.el.getBoundingClientRect().top;
-  const top = Math.max(8, barEl.getBoundingClientRect().bottom - y0 + 10), topR = Math.max(top, toolsEl.getBoundingClientRect().bottom - y0 + 10);
+  const top = Math.max(8, barEl.getBoundingClientRect().bottom - y0 + 10), topR = Math.max(top, exBtnEl.getBoundingClientRect().bottom - y0 + 10);   // con la maqueta explotada solo queda ese botón
   const bottom = panel.getBoundingClientRect().top - y0 - PART_H - 10;
   for (const p of PARTS) {
     if (!p.w) p.w = p.b.offsetWidth;
@@ -642,18 +573,20 @@ ctl.update = (dt, now) => {
   s.roof = approach(s.roof, Math.max(C.roof, roofTmp), 3.5, dt);
   // vista explotada: avanza parejo y cada pieza suaviza su tramo. El pedestal se vuelve translúcido y deja ver los barrotes
   s.explode = reduceMotion ? C.explode : clamp(s.explode + (C.explode ? dt : -dt) / 1.25);
-  s.xray = s.explode * .5;
+  s.xray = smooth(ramp(s.explode, .18, 1)) * .5;   // empieza cuando las capas ya se separaron y llega suave
   // SOS: ondas desde el buzzer y la tira LED alternando rojo y azul
   let lamp = C.lamp, led = null;
   if (waveT >= 0) { waveT += dt; moving = true; if (waveT > waveEnd + sosFx.life) waveT = -1; }
   if (sosT >= 0) {
     sosT += dt;
-    led = Math.floor(sosT / .28) % 2 ? 0x2f6bff : 0xff2a1f; lamp = 1;
-    if (sosT >= SOS_DUR) { sosT = -1; waveEnd = waveT; say(2, 'Alerta terminada. En la maqueta dura 30 segundos.'); paint(); }
+    // el azul va más intenso que el rojo para que se note igual sobre la maqueta azul
+    const blue = Math.floor(sosT / .28) % 2;
+    led = blue ? SOS_BLUE : SOS_RED; lamp = blue ? 2.2 : 1;
+    if (sosT >= SOS_DUR) { sosT = -1; waveEnd = waveT; say(2, 'Alerta terminada. En la maqueta dura 10 segundos.'); paint(); }
     moving = true;
   } else {
     if (C.bars) { // barrotes arriba: destellos rojos
-      led = 0xff2a1f; lamp = Math.floor(now / .32) % 2 ? 1 : .12;
+      led = SOS_RED; lamp = Math.floor(now / .32) % 2 ? 1 : .12;
       moving = true;
     }
   }
@@ -666,13 +599,13 @@ ctl.update = (dt, now) => {
     const stop = BUS.stop;
     if (busPhase === 'in') {
       busX = BUS.far + (stop - BUS.far) * easeOut(clamp(busT / BUS.in));
-      if (busT >= BUS.in) { busPhase = 'oled'; busMark = busT; roofTmp = 1; shoot(SHOTS.oled, 2.2); say(4, 'El sensor leyó su color: azul.'); paint(); }
+      if (busT >= BUS.in) { busPhase = 'oled'; busMark = busT; roofTmp = 1; shoot(SHOTS.oled, 1.6); say(4, `El sensor leyó su color: ${route.word.toLowerCase()}.`); paint(); }
     } else if (busPhase === 'oled') {
       busX = stop;
-      if (busT - busMark >= BUS.zoom) { busPhase = 'map'; busMark = busT; mapClose = false; showMap(true); say(4, 'Ruta 2: la pantalla de la caseta avisa cuál llegó.'); paint(); }
+      if (busT - busMark >= BUS.zoom) { busPhase = 'map'; busMark = busT; mapClose = false; showMap(true); say(4, `Ruta ${route.n}: la pantalla de la caseta avisa cuál llegó.`); paint(); }
     } else if (busPhase === 'map') {
       busX = stop;
-      if (mapClose || busT - busMark >= BUS.map) { busPhase = 'out'; busMark = busT; showMap(false); roofTmp = 0; shoot(SHOTS.route, 2); paint(); }
+      if (mapClose || busT - busMark >= BUS.map) { busPhase = 'out'; busMark = busT; showMap(false); roofTmp = 0; shoot(SHOTS.route, 1.6); paint(); }
     } else {
       const k = clamp((busT - busMark) / BUS.out);
       busX = stop + (-BUS.far - stop) * easeIn(k);
@@ -702,7 +635,7 @@ function paint() {
     lamp: [C.lamp, C.lamp ? 'Encendida' : 'Apagada'],
     sos: [sosT >= 0, sosT >= 0 ? 'Alerta activa' : 'Pedir ayuda'],
     door: [C.door, C.bars ? 'Bloqueada' : C.door ? 'Abierta' : 'Usar tarjeta'],
-    bus: [busT >= 0, busT < 0 ? 'Llamar ruta' : busPhase === 'in' ? 'En camino' : busPhase === 'out' ? 'Se va' : 'Ruta 2 llegó'],
+    bus: [busT >= 0, busT < 0 ? 'Llamar ruta' : busPhase === 'in' ? 'En camino' : busPhase === 'out' ? 'Se va' : `Ruta ${route.n} llegó`],
     bars: [C.bars, C.bars ? 'Arriba' : 'Abajo'],
   };
   for (const k in st) {
@@ -724,6 +657,13 @@ const ACT = {
     shoot(HOME);
   },
   lamp() {
+    if (C.night) { // de noche la fotorresistencia manda: la luz no se puede apagar
+      C.lamp = 1;
+      say(1, 'De noche la luz no se apaga: la enciende la fotorresistencia.');
+      tiles.lamp.classList.remove('deny'); void tiles.lamp.offsetWidth; tiles.lamp.classList.add('deny');
+      shoot(SHOTS.light);
+      return;
+    }
     C.lamp = C.lamp ? 0 : 1;
     say(1, C.lamp ? 'Tira LED encendida dentro de la caseta.' : 'Tira LED apagada.');
     shoot(SHOTS.light);
@@ -748,6 +688,7 @@ const ACT = {
   },
   bus() {
     if (busT >= 0) { if (busPhase === 'map') mapClose = true; return; }
+    setRoute((routeI + 1) % ROUTES.length);   // cada llamada trae la ruta siguiente: azul, roja, azul…
     busT = 0; busPhase = 'in'; busX = BUS.far;
     say(4, 'Llega un camión a la parada.');
     shoot(SHOTS.route);
@@ -774,6 +715,8 @@ function setExplode(on, fly = true) {
   exBtn.setAttribute('aria-pressed', !!on);
   exBtn.setAttribute('aria-label', on ? 'Armar la maqueta' : 'Vista explotada');
   partsEl.inert = !on;
+  // los otros botones se esconden mientras está explotada: dejan su lugar a las etiquetas
+  ctlSec.classList.toggle('exploded', !!on); roofBtn.disabled = realBtn.disabled = !!on;
   PARTS.forEach(p => p.b.classList.remove('on'));
   if (on && busT >= 0) { busT = -1; busX = null; busPhase = ''; roofTmp = 0; showMap(false); paint(); }   // el camión no espera a que la armen
   if (fly) shoot(on ? explodedShot() : HOME, 1.7);
@@ -797,7 +740,6 @@ roofBtn.addEventListener('click', () => {
   if (C.roof && !C.explode) shoot({ ...HOME, el: 0.72 });
   invalidate(ctl);
 });
-$('#homeBtn').addEventListener('click', () => shoot(C.explode ? explodedShot() : HOME));
 const realBtn = $('#realBtn');
 realBtn.addEventListener('click', () => {
   const on = ctl.state.real = !ctl.state.real;
@@ -805,16 +747,6 @@ realBtn.addEventListener('click', () => {
   say(0, on ? 'Materiales reales: madera, como la maqueta física.' : 'Maqueta en azul SafeWait.');
   invalidate(ctl);
 });
-// desde "Por qué": muestra el nodo elegido en la maqueta y resalta su mosaico
-const NODE_TILE = { light: 'lamp', sos: 'sos', door: 'door', route: 'bus', bars: 'bars' };
-function focusNode(key) {
-  const n = NODES.find(x => x.key === key); if (!n) return;
-  setExplode(false, false);
-  say(n.n, n.title);
-  shoot(SHOTS[key]);
-  const b = tiles[NODE_TILE[key]];
-  b.classList.remove('hint'); void b.offsetWidth; b.classList.add('hint');
-}
 paint();
 { // girar: arrastre horizontal (el vertical sigue siendo el scroll de la página)
   const el = ctl.el;
@@ -852,8 +784,10 @@ function layout() {
   if (hero.w) {
     const s = heroSec.getBoundingClientRect(), a = $('.hero-head').getBoundingClientRect().bottom - s.top, b = $('.hero .card').getBoundingClientRect().top - s.top;
     heroBox = { cx: hero.w / 2, cy: (a + b) / 2 + 6, w: Math.min(hero.w * 1.32, 620), h: (b - a) * 1.02 };
+    // mientras llega el modelo, el resplandor ya late donde va a quedar la caseta (al dibujarse, glowAt lo afina)
+    heroSec.style.setProperty('--gx', (hero.w / 2).toFixed(0) + 'px'); heroSec.style.setProperty('--gy', ((a + b) / 2 - 8).toFixed(0) + 'px');
   }
-  heroGlow = whyGlow = false;
+  heroGlow = false;
 }
 window.addEventListener('orientationchange', () => setTimeout(() => { layout(); invalidate(); }, 250));
 
@@ -869,7 +803,9 @@ if (stage) {
   Promise.resolve(window.__swModel || '/models/safewait.glb').then(m => stage.load(m)).then(async () => {
     await Promise.race([fonts, new Promise(r => setTimeout(r, 1200))]);
     stage.drawLogos(logoImg.complete && logoImg.naturalWidth ? logoImg : null);
+    { const i = routeI; setRoute(Math.max(0, i)); routeI = i; }   // letrero del camión y pantalla OLED, ya con las fuentes de la página
     stage.assemble();
+    glowReady();
     document.documentElement.classList.add('model-ready');
     layout(); invalidate();
   }).catch(err => { console.error(err); no3D(); });
@@ -880,11 +816,10 @@ if (params.has('stand')) {
   let idle;
   const restart = () => {
     setExplode(false, false);
-    Object.assign(C, { night: 1, lamp: 1, door: 0, bars: 0, roof: 0 }); sosT = busT = waveT = -1; busX = null; busPhase = ''; roofTmp = 0; showMap(false);
+    Object.assign(C, { night: 1, lamp: 1, door: 0, bars: 0, roof: 0 }); sosT = busT = waveT = -1; busX = null; busPhase = ''; roofTmp = 0; showMap(false); routeI = -1;
     ctl.state.real = false; realBtn.setAttribute('aria-pressed', 'false');
     roofBtn.setAttribute('aria-pressed', 'false');
     say(0, 'Toca un mosaico y mira la maqueta.'); paint(); shoot(HOME);
-    luzTo(0);
     window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
     setTimeout(() => { if (stage && stage.ready) { stage.assemble(); heroT = 0; invalidate(); } arm(); }, reduceMotion ? 0 : 1500);
   };
@@ -893,4 +828,4 @@ if (params.has('stand')) {
   arm();
 }
 
-if (import.meta.env.DEV) window.__sw = { stage, views, cam, C };
+if (import.meta.env.DEV) window.__sw = { stage, views, cam, C, invalidate };

@@ -93,12 +93,16 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 
 export class Stage {
   // offscreen: el lienzo WebGL no se muestra; cada vista se dibuja con draw() y se copia a un lienzo 2D propio (celular)
-  constructor(canvas, { mobile = false, reduceMotion = false, offscreen = false, dpr = null } = {}) {
+  // intro: cómo aparece la maqueta al cargar. 'sweep' la dibuja pieza por pieza con un plano de corte;
+  // 'explode' la muestra entera, apenas separada por capas, y la junta
+  constructor(canvas, { mobile = false, reduceMotion = false, offscreen = false, dpr = null, intro = 'sweep' } = {}) {
+    this.intro = intro;
     this.canvas = canvas;
     this.reduceMotion = reduceMotion;
     this.views = [];
     this.ready = false;
-    this.asm = { t: -1, dur: 2.5 };
+    this.asm = { t: -1, dur: 2.5, ex: 0 };
+    this.ghosts = [];      // copias que solo escriben profundidad: ordenan el pedestal cuando se vuelve translúcido
 
     const r = this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
     this.offscreen = offscreen;
@@ -495,6 +499,15 @@ export class Stage {
       this.#piece(o, (ph ? ph[1] : 1.0) + (i % 3) * 0.04, exFor(name, c));
     });
     this.#cleanTop();
+    // Pedestal translúcido sin parpadeos: una copia de cada pieza escribe solo profundidad antes de la pasada con mezcla,
+    // así se dibuja nada más la cara más cercana y el resultado no depende del orden en que se pinten las piezas.
+    const depthOnly = new THREE.MeshBasicMaterial({ colorWrite: false });
+    for (const m of this.meshes) {
+      if (!['base', 'grass', 'logo', 'logoBlock'].includes(m.userData.cls)) continue;
+      const g = new THREE.Mesh(m.geometry, depthOnly);
+      g.renderOrder = 1; g.visible = false; g.raycast = () => {};
+      m.add(g); this.ghosts.push(g);
+    }
     this.root.add(model);
     await this.#prewarm();
     this.ready = true;
@@ -560,7 +573,8 @@ export class Stage {
     const r = this.renderer, cam = new THREE.PerspectiveCamera(30, 1, 1, 1500);
     cam.position.set(0, 120, 200); cam.lookAt(0, 20, 0); cam.updateMatrixWorld();
     const states = [], seen = new Set();
-    for (const f of this.reduceMotion ? [1] : [0.5, 1]) for (const v of this.views) {
+    // con la entrada 'explode' no hay piezas a medio dibujar: basta precalentar los materiales ya asentados
+    for (const f of this.reduceMotion || this.intro === 'explode' ? [1] : [0.5, 1]) for (const v of this.views) {
       const key = f + JSON.stringify(v.state);
       if (!seen.has(key)) { seen.add(key); states.push([f, v.state]); }
     }
@@ -574,6 +588,9 @@ export class Stage {
     r.clear();
   }
 
+  // separación con la que se dibuja una vista: la de su estado o, mientras dura la entrada, la de la entrada
+  exOf(s) { return Math.max(s.explode || 0, this.asm.ex || 0); }
+
   /* ---------- armado pieza por pieza ---------- */
   assemble() {
     // reloj propio que avanza con dt (tope 1/30 s): un cuadro lento frena la animación en vez de saltarse un tramo
@@ -585,6 +602,13 @@ export class Stage {
       this.asm.t += Math.min(dt, 1 / 30);
     }
     const t = this.asm.t < 0 ? 99 : this.asm.t;
+    if (this.intro === 'explode') {
+      // entrada sutil: la maqueta llega entera, apenas separada por capas, y se junta frenando (el techo es lo último en asentarse)
+      const k = Math.min(1, t / this.asm.dur);
+      this.asm.ex = 0.42 * Math.pow(1 - k, 2.4);
+      this.asm.done = k >= 1;
+      return;
+    }
     const span = 1.0, scale = this.asm.dur / 2.5;
     let all = true;
     for (const p of this.pieces) {
@@ -627,7 +651,10 @@ export class Stage {
     this.edgeMat.opacity = (s.real ? .3 : .5) * (1 - .85 * (s.dark || 0));
 
     const xo = s.xray > 0 ? 1 - .82 * s.xray : 1;
-    [set.base, set.grass, set.logo].forEach(m => { m.opacity = xo; m.depthWrite = xo > .99; });
+    // en la vista explotada el pedestal translúcido se ordena con las copias de profundidad (ghosts); en "Ver mecanismo" queda como estaba
+    const ghost = xo < 1 && (s.explode || 0) > 0;
+    [set.base, set.grass, set.logo].forEach(m => { m.opacity = xo; m.depthWrite = !ghost && xo > .99; });
+    for (const g of this.ghosts) g.visible = ghost;
     set.logoBlock = set.base;
 
     for (const m of this.meshes) {
@@ -652,7 +679,7 @@ export class Stage {
     }
 
     // posiciones: armado + estado
-    const ex = s.explode || 0;
+    const ex = this.exOf(s);
     for (const p of this.pieces) {
       p.obj.position.y = p.obj.userData.y0;
       const x = p.obj.userData.ex;

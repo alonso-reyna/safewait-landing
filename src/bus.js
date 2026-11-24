@@ -98,13 +98,14 @@ export function makeBus({ clipX = 33.5, mirror = false, route = '2   AZUL' } = {
     const wp = box(0.05, 1.5, 0.06, M.trim, fx + 0.09, 4.75, k * 1.5); wp.rotation.x = k * 0.5;
   });
   const sign = document.createElement('canvas'); sign.width = 512; sign.height = 80;
-  {
+  const drawSign = text => {
     const g = sign.getContext('2d');
     g.fillStyle = '#05080f'; g.fillRect(0, 0, 512, 80);
     g.fillStyle = '#ffc24a'; g.textBaseline = 'middle'; g.textAlign = 'center';
     g.font = '700 54px "Inter Tight Variable", "Inter Tight", system-ui, sans-serif';
-    g.fillText(route, 256, 43, 484);
-  }
+    g.fillText(text, 256, 43, 484);
+  };
+  drawSign(route);
   const signTex = new THREE.CanvasTexture(sign); signTex.colorSpace = THREE.SRGBColorSpace; signTex.anisotropy = 8;
   if (mirror) { signTex.wrapS = THREE.RepeatWrapping; signTex.repeat.x = -1; signTex.offset.x = 1; }   // al reflejar el camión el letrero se voltea de regreso
   const signMat = mat({ color: 0x05080f, emissive: 0xffffff, emissiveMap: signTex, emissiveIntensity: 1.25, roughness: .3 });
@@ -162,6 +163,11 @@ export function makeBus({ clipX = 33.5, mirror = false, route = '2   AZUL' } = {
 
   return {
     group: bus, length: L,
+    // otra ruta: cambia el letrero y el color de las franjas (la de abajo es la que lee el sensor)
+    setRoute(text, color, dark = color) {
+      drawSign(text); signTex.needsUpdate = true;
+      M.stripe.color.setHex(color); M.stripe2.color.setHex(dark);
+    },
     // x: centro del camión sobre la calle; null lo esconde
     setX(x) {
       bus.visible = x != null;
