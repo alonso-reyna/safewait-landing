@@ -8,8 +8,8 @@
   <meta name="theme-color" content="#ffffff">
   <meta name="color-scheme" content="light">
   <script>
-    // celular: la página de escritorio no llega a pintarse; movil.js arma la suya (misma regla que src/main.js)
-    (function () { var s = location.search; if (/[?&]movil\b/.test(s) || (matchMedia('(max-width: 820px)').matches && !/[?&]escritorio\b/.test(s))) document.documentElement.className += ' movil'; })();
+    // la página anterior de escritorio no llega a pintarse; movil.js arma la suya (misma regla que src/main.js)
+    (function () { if (!/[?&]escritorio\b/.test(location.search)) document.documentElement.className += ' movil'; })();
   </script>
   <style>html.movil, html.movil body { background: #0b1433; } html.movil body > :not(#app) { display: none !important; }</style>
   <link rel="icon" type="image/svg+xml" href="/safewait-logo.svg">

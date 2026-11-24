@@ -26,6 +26,9 @@ const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const params = new URLSearchParams(location.search);
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches || params.has('quieto');
 document.documentElement.classList.toggle('reduce-motion', reduceMotion);
+// pantallas anchas: el texto va a un lado y la maqueta ocupa el resto (mismo corte que movil.css)
+const wideMQ = window.matchMedia('(min-width: 821px)');
+const wide = () => wideMQ.matches;
 
 /* ---------- iconos (trazo, 24 × 24) ---------- */
 const I = {
@@ -184,7 +187,7 @@ app.addEventListener('click', e => {
 /* ---------- escena ---------- */
 let stage = null, details = null;
 const gl = document.createElement('canvas');
-try { stage = new Stage(gl, { mobile: true, reduceMotion, offscreen: true, dpr: Math.min(window.devicePixelRatio || 1, 2), intro: 'explode' }); } catch (err) { console.error(err); }
+try { stage = new Stage(gl, { mobile: !wide(), reduceMotion, offscreen: true, dpr: Math.min(window.devicePixelRatio || 1, 2), intro: 'explode' }); } catch (err) { console.error(err); }
 function no3D() { stage = null; document.documentElement.classList.add('no-3d'); glowReady(); }
 if (!stage) no3D();
 
@@ -482,7 +485,10 @@ Object.assign(ctl.state, { night: 1, lamp: 1, dark: 1 });
 ctl.onFrame = v => {
   const c = v.camera;
   c.clearViewOffset(); c.updateProjectionMatrix();
-  orbit(c, cam.tgt, cam.az, cam.el, fitDist(c, cam.r));
+  // pantalla ancha: la vista ocupa toda la sección (en celular el panel tapa la parte de abajo), así que la cámara se aleja un poco
+  orbit(c, cam.tgt, cam.az, cam.el, fitDist(c, cam.r) * (wide() ? 1.3 : 1));
+  // pantalla ancha: el panel va a la izquierda, así que la maqueta se recorre al centro del espacio libre
+  if (wide() && v.w) { c.setViewOffset(v.w, v.h, -panelShift(v), 0, v.w, v.h); c.updateProjectionMatrix(); }
   // las puertas de papel dejan pasar la luz de adentro; en una alerta toman su color, también de día
   const led = v.state.led, glow = led != null ? Math.min(1.1, .45 + v.state.lamp * .3) : v.state.lamp * v.state.night * .5;
   if (doorMat) { doorMat.emissive.setHex(led ?? 0xcfe6ff); doorMat.emissiveIntensity = glow; }
@@ -519,6 +525,9 @@ const PARTS = [
   return part;
 });
 const PART_H = 26, barEl = $('.bar'), exBtnEl = $('#exBtn');
+// espacio que ocupa el panel a la izquierda de la vista (solo en pantalla ancha)
+function panelRight(v) { return panel.getBoundingClientRect().right - v.el.getBoundingClientRect().left; }
+function panelShift(v) { return Math.max(0, panelRight(v)) / 2; }
 function placeParts(v) {
   const e = v.state.explode, a = ramp(e, .72, 1);
   partsEl.style.opacity = a.toFixed(3);
@@ -527,7 +536,8 @@ function placeParts(v) {
   // el punto va sobre el componente; las etiquetas se acomodan en dos columnas, a los lados de la maqueta, sin encimarse
   const y0 = v.el.getBoundingClientRect().top;
   const top = Math.max(8, barEl.getBoundingClientRect().bottom - y0 + 10), topR = Math.max(top, exBtnEl.getBoundingClientRect().bottom - y0 + 10);   // con la maqueta explotada solo queda ese botón
-  const bottom = panel.getBoundingClientRect().top - y0 - PART_H - 10;
+  const W = wide(), left = W ? panelRight(v) + 24 : 8;
+  const bottom = W ? v.h - PART_H - 28 : panel.getBoundingClientRect().top - y0 - PART_H - 10;
   for (const p of PARTS) {
     if (!p.w) p.w = p.b.offsetWidth;
     tmp.copy(p.at).addScaledVector(p.ex, exK(e, p.len)).project(v.camera);
@@ -543,7 +553,7 @@ function placeParts(v) {
     col.forEach((p, i) => { p.py = Math.max(clamp(p.y - PART_H / 2, lo, bottom), i ? col[i - 1].py + PART_H + 8 : lo); });
     for (let i = col.length - 1; i >= 0; i--) col[i].py = Math.min(col[i].py, i < col.length - 1 ? col[i + 1].py - PART_H - 8 : bottom);
     for (const p of col) {
-      p.px = side === 'l' ? 8 : v.w - p.w - (tight ? 62 : 8);
+      p.px = side === 'l' ? left : v.w - p.w - (tight ? 62 : W ? 32 : 8);
       p.b.style.transform = `translate(${p.px.toFixed(1)}px, ${p.py.toFixed(1)}px)`;
       p.dot.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`;
       p.line.setAttribute('x1', p.x.toFixed(1)); p.line.setAttribute('y1', p.y.toFixed(1));
@@ -710,7 +720,7 @@ const exBtn = $('#exBtn');
 // encuadre de la vista explotada: a lo ancho cabe con r 49; en pantallas bajas manda el alto libre entre la barra y el panel
 function explodedShot() {
   const c = ctl.camera, vh = THREE.MathUtils.degToRad(c.fov) / 2, half = Math.min(vh, Math.atan(Math.tan(vh) * c.aspect));
-  const free = panel.offsetTop - barEl.getBoundingClientRect().bottom;
+  const free = wide() ? ctl.h - barEl.getBoundingClientRect().bottom - 40 : panel.offsetTop - barEl.getBoundingClientRect().bottom;
   const tall = ctl.h && free > 40 ? 50.5 / Math.tan(vh * .96 * Math.min(1, free / ctl.h)) : 0;
   return { ...EXPLODED, r: Math.max(EXPLODED.r, tall * Math.sin(half)) };
 }
@@ -788,13 +798,20 @@ paint();
 function layout() {
   // Inicio: la maqueta ocupa el hueco entre el título y la tarjeta
   if (hero.w) {
-    const s = heroSec.getBoundingClientRect(), a = $('.hero-head').getBoundingClientRect().bottom - s.top, b = $('.hero .card').getBoundingClientRect().top - s.top;
-    heroBox = { cx: hero.w / 2, cy: (a + b) / 2 + 6, w: Math.min(hero.w * 1.32, 620), h: (b - a) * 1.02 };
+    const s = heroSec.getBoundingClientRect();
+    if (wide()) { // texto a la izquierda; la maqueta, en el espacio de la derecha
+      const x = $('.hero .card').getBoundingClientRect().right - s.left + 24, free = hero.w - x;
+      heroBox = { cx: x + free / 2, cy: hero.h / 2 + 24, w: Math.min(free * .88, hero.h * 1.4), h: hero.h * .6 };
+    } else {
+      const a = $('.hero-head').getBoundingClientRect().bottom - s.top, b = $('.hero .card').getBoundingClientRect().top - s.top;
+      heroBox = { cx: hero.w / 2, cy: (a + b) / 2 + 6, w: Math.min(hero.w * 1.32, 620), h: (b - a) * 1.02 };
+    }
     // mientras llega el modelo, el resplandor ya late donde va a quedar la caseta (al dibujarse, glowAt lo afina)
-    heroSec.style.setProperty('--gx', (hero.w / 2).toFixed(0) + 'px'); heroSec.style.setProperty('--gy', ((a + b) / 2 - 8).toFixed(0) + 'px');
+    heroSec.style.setProperty('--gx', heroBox.cx.toFixed(0) + 'px'); heroSec.style.setProperty('--gy', (heroBox.cy - 14).toFixed(0) + 'px');
   }
   heroGlow = false;
 }
+wideMQ.addEventListener('change', () => { layout(); invalidate(); });
 window.addEventListener('orientationchange', () => setTimeout(() => { layout(); invalidate(); }, 250));
 
 /* ---------- cargar el modelo ---------- */
