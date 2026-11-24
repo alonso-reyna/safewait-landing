@@ -39,7 +39,7 @@ $('#howSteps').innerHTML = NODES.map(n => `
     <p class="step-flow"><span>${n.sensor}</span><span class="arrow" aria-hidden="true">→</span><span>${n.actuator}</span></p>
   </article>`).join('');
 $('#nodesTable').innerHTML = NODES.map(n => `<tr><th scope="row"><span class="badge">${n.n}</span>${n.name}</th><td data-l="Sensor">${n.sensor}</td><td data-l="Actuador">${n.actuator}</td><td data-l="Responsable">${n.owner}</td></tr>`).join('');
-$('#teamList').innerHTML = TEAM.map(p => `<li><b>${p.name}</b><span>${p.role}</span>${p.extra ? `<span class="extra">${p.extra}</span>` : ''}</li>`).join('');
+$('#teamList').innerHTML = TEAM.map(p => `<li><b>${p.name}</b>${p.extra ? `<span class="extra">${p.extra}</span>` : ''}<span>${p.role}</span></li>`).join('');
 $('#nodeStops').innerHTML = NODES.map(n => `<li><button type="button" data-node="${n.key}" aria-pressed="false"><span class="d">${n.n}</span><span class="t">${n.name}</span></button></li>`).join('');
 if (CONFIG.lookerUrl) { const b = $('#lookerBtn'); b.href = CONFIG.lookerUrl; b.hidden = false; }
 

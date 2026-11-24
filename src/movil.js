@@ -117,7 +117,7 @@ app.innerHTML = `
     <span class="dawn" aria-hidden="true"></span>
     <h2 class="team-title">Equipo</h2>
     <ul class="people glass-l">
-      ${TEAM.map((p, i) => `<li><span class="n">${i + 1}</span><span><b>${p.name}</b><i>${p.area}, ${p.extra}</i></span></li>`).join('')}
+      ${TEAM.map((p, i) => `<li><span class="n">${i + 1}</span><span><b>${p.name}</b><i><strong>${p.extra}</strong>, ${p.area}</i></span></li>`).join('')}
       <li><span class="n n-b">${ic('cap', 18)}</span><span><b>${TEACHERS}</b><i>Profesoras</i></span></li>
     </ul>
     <h2 class="flow-title">Del sensor al dashboard</h2>
