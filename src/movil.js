@@ -717,7 +717,7 @@ function setExplode(on, fly = true) {
   if (!!C.explode === !!on) return;
   C.explode = on ? 1 : 0;
   exBtn.setAttribute('aria-pressed', !!on);
-  $('span', exBtn).textContent = on ? 'Armar maqueta' : 'Vista explotada';
+  if (on) exBtn.setAttribute('aria-label', 'Armar maqueta'); else exBtn.removeAttribute('aria-label');   // explotada: solo el icono
   exBtn.classList.add('used');   // ya la probaron: deja de latir
   partsEl.inert = !on;
   // los otros botones se esconden mientras está explotada: dejan su lugar a las etiquetas
