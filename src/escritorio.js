@@ -270,7 +270,7 @@ $$('.prob-night a').forEach(a => a.addEventListener('focus', () => {
 /* Explóralo tú: visor con OrbitControls */
 const ctr = new OrbitControls(exView.camera, exView.el);
 ctr.enableDamping = true; ctr.dampingFactor = 0.08;
-ctr.minDistance = 22; ctr.maxDistance = 280; ctr.maxPolarAngle = Math.PI * 0.49;
+ctr.minDistance = 22; ctr.maxDistance = 340; ctr.maxPolarAngle = Math.PI * 0.49;
 ctr.enablePan = false; ctr.enableZoom = false;
 // en pantallas táctiles un dedo baja la página y dos dedos giran y acercan (con el mouse no cambia nada)
 exView.el.style.touchAction = 'pan-y';
@@ -282,11 +282,12 @@ exView.el.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse')
 
 const EX_HOME = { tgt: V(-2, 15, -3), dir: V(76, 61, 123).normalize() };
 const VIEWS = { light: V(18, 35, 50), sos: V(26, 46, 52), door: V(11, 9, 50), route: V(12, 30, 36), bars: V(-10, 26, 58) };
-const exTarget = { night: 0, door: 0, bars: 0, roof: 0, xray: 0 };
+const exTarget = { night: 0, door: 0, bars: 0, roof: 0, xray: 0, explode: 0 };
 let fly = null, exHomed = false, selected = null;
+// encuadre de inicio; con la vista explotada, más lejos y más arriba para que quepan todas las capas
 function homePose() {
-  const d = fitDist(exView.camera, 46);
-  return { pos: EX_HOME.tgt.clone().addScaledVector(EX_HOME.dir, d), tgt: EX_HOME.tgt.clone() };
+  const ex = exTarget.explode, tgt = ex ? V(-2, 36, -3) : EX_HOME.tgt.clone();
+  return { pos: tgt.clone().addScaledVector(EX_HOME.dir, fitDist(exView.camera, ex ? 70 : 46)), tgt };
 }
 function flyTo(pos, tgt) {
   if (reduceMotion) { exView.camera.position.copy(pos); ctr.target.copy(tgt); return; }
@@ -312,6 +313,8 @@ exView.onFrame = (v, now, dt) => {
   s.bars = approach(s.bars, exTarget.bars, 1.3, dt);
   s.roof = approach(s.roof, exTarget.roof, 3, dt);
   s.xray = approach(s.xray, exTarget.xray, 3, dt);
+  // vista explotada: avanza parejo y cada pieza suaviza su propio tramo
+  s.explode = reduceMotion ? exTarget.explode : clamp(s.explode + (exTarget.explode ? dt : -dt) / 1.25);
   s.hl = null;
   s.oled = approach(s.oled, selected === 'route' ? 1 : 0, 3, dt);
   if (fly) {
@@ -324,7 +327,8 @@ exView.onFrame = (v, now, dt) => {
   v.camera.updateMatrixWorld();
   for (const n of NODES) {
     const q = stage.project(v, ANCHORS[n.key]);
-    const vis = !q.behind && q.x > -20 && q.y > -20 && q.x < v.rect.width + 20 && q.y < v.rect.height + 20;
+    // con la maqueta explotada las piezas no están en su lugar: los puntos de los nodos se esconden
+    const vis = s.explode < .02 && !q.behind && q.x > -20 && q.y > -20 && q.x < v.rect.width + 20 && q.y < v.rect.height + 20;
     n.hs.style.display = vis ? '' : 'none';
     if (vis) n.hs.style.transform = `translate(${q.x}px, ${q.y}px)`;
   }
@@ -339,6 +343,7 @@ const ACTS = {
 function select(key) {
   selected = selected === key ? null : key;
   $$('[data-node]').forEach(b => { const on = b.dataset.node === selected; b.classList.toggle('on', on); if (b.hasAttribute('aria-pressed')) b.setAttribute('aria-pressed', on); });
+  if (selected && exTarget.explode) setAct('explode', false, false);
   if (!selected) {
     card.innerHTML = '<p class="node-hint">Toca un nodo para ver qué hace.</p>';
     const h = homePose(); flyTo(h.pos, h.tgt); return;
@@ -367,11 +372,17 @@ function renderActs(key) {
 }
 $$('#nodeStops [data-node]').forEach(b => b.addEventListener('click', () => select(b.dataset.node)));
 
-const LABELS = { night: ['Modo noche', 'Modo día'], door: ['Abrir puerta', 'Cerrar puerta'], bars: ['Subir barrotes', 'Bajar barrotes'], xray: ['Ver mecanismo', 'Ocultar mecanismo'], roof: ['Quitar techo', 'Poner techo'] };
-function setAct(k, on) {
+const LABELS = { night: ['Modo noche', 'Modo día'], door: ['Abrir puerta', 'Cerrar puerta'], bars: ['Subir barrotes', 'Bajar barrotes'], xray: ['Ver mecanismo', 'Ocultar mecanismo'], roof: ['Quitar techo', 'Poner techo'], explode: ['Vista explotada', 'Armar maqueta'] };
+function setAct(k, on, fly = true) {
+  const was = exTarget[k];
   exTarget[k] = on ? 1 : 0;
   const b = $(`.explore-bar [data-act="${k}"]`);
   b.setAttribute('aria-pressed', on); b.textContent = LABELS[k][on ? 1 : 0];
+  // vista explotada: la cámara se aleja para que quepan todas las capas; al armarla, vuelve
+  if (k === 'explode' && was !== exTarget[k] && fly) {
+    if (on && selected) select(selected);
+    const h = homePose(); flyTo(h.pos, h.tgt);
+  }
 }
 $$('.explore-bar [data-act]').forEach(b => b.addEventListener('click', () => {
   const k = b.dataset.act;
