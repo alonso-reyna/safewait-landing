@@ -99,7 +99,7 @@ app.innerHTML = `
     <div class="glow" aria-hidden="true"></div>
     <div class="view" id="v-ctl" role="img" aria-label="Maqueta 3D del paradero. Desliza a los lados para girarla."><canvas></canvas><div class="parts" id="parts" inert><svg aria-hidden="true"></svg></div></div>
     <div class="tools">
-      <button type="button" class="round glass glass-d" id="exBtn" aria-pressed="false" aria-label="Vista explotada">${ic('explode', 20)}</button>
+      <button type="button" class="round glass glass-d ex" id="exBtn" aria-pressed="false">${ic('explode', 20)}<span>Vista explotada</span></button>
       <button type="button" class="round glass glass-d" id="roofBtn" aria-pressed="false" aria-label="Quitar techo">${ic('roof', 20)}</button>
       <button type="button" class="round glass glass-d" id="realBtn" aria-pressed="false" aria-label="Materiales reales">${ic('layers', 20)}</button>
     </div>
@@ -256,8 +256,9 @@ if (stage) {
   // cada vista elige su juego de detalles justo antes de dibujarse
   swapReal = real => {
     realNow = real;
-    for (const p of details.pieces) p.group.visible = p.group.visible && !real;
-    for (const p of detailsR.pieces) p.group.visible = p.group.visible && real;
+    // se fija sin mirar el valor anterior: si dos vistas se dibujan en el mismo cuadro, la primera no le apaga las piezas a la segunda
+    for (const p of details.pieces) p.group.visible = !real || !!p.group.userData.both;   // la repisa del SOS va en las dos versiones
+    for (const p of detailsR.pieces) p.group.visible = real;
     shelf.color.setHex(real ? 0xd8bf96 : TONE.floor);
     for (const m of doorSync.mats) m.color.setHex(real ? 0x2b2320 : 0x162660);
   };
@@ -268,7 +269,7 @@ if (stage) {
   stage.root.add(bus.group);
   bus.setX(null);
   { // repisa bajo el sensor del SOS
-    const g = new THREE.Group(), geo = new THREE.BoxGeometry(2.5, 0.3, 3.6);
+    const g = new THREE.Group(), geo = new THREE.BoxGeometry(2.5, 0.3, 3.6); g.userData.both = true;
     geo.translate(SOS_P.x, SOS_P.y - 0.19, CAD.backInnerZ + 1.8);
     const m = new THREE.Mesh(geo, shelf); m.castShadow = m.receiveShadow = true; g.add(m);
     details.piece(g, 1.25);
@@ -328,7 +329,8 @@ function makeView(id) {
   const el = $(id), canvas = $('canvas', el);
   const v = stage ? stage.addView(el) : { el, camera: new THREE.PerspectiveCamera(30, 1, 1, 1500), state: defaultState() };
   Object.assign(v, { canvas, w: 0, h: 0, shown: false, dirty: true, pre: false, update: null });
-  new IntersectionObserver(es => { v.shown = es[0].isIntersecting; if (v.shown) kick(); }).observe(el);
+  // margen de −2 px: una vista que apenas toca el borde de la pantalla (Inicio, con la página detenida justo en Nodos) no se dibuja
+  new IntersectionObserver(es => { v.shown = es[0].isIntersecting; if (v.shown) kick(); }, { rootMargin: '-2px 0px' }).observe(el);
   // solo cuenta el tamaño CSS del bloque: las secciones miden en svh, así que la barra de URL no lo cambia
   new ResizeObserver(() => {
     const w = el.clientWidth, h = el.clientHeight;
@@ -715,7 +717,8 @@ function setExplode(on, fly = true) {
   if (!!C.explode === !!on) return;
   C.explode = on ? 1 : 0;
   exBtn.setAttribute('aria-pressed', !!on);
-  exBtn.setAttribute('aria-label', on ? 'Armar la maqueta' : 'Vista explotada');
+  $('span', exBtn).textContent = on ? 'Armar maqueta' : 'Vista explotada';
+  exBtn.classList.add('used');   // ya la probaron: deja de latir
   partsEl.inert = !on;
   // los otros botones se esconden mientras está explotada: dejan su lugar a las etiquetas
   ctlSec.classList.toggle('exploded', !!on); roofBtn.disabled = realBtn.disabled = !!on;
