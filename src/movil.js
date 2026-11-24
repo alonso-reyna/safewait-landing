@@ -41,6 +41,7 @@ const I = {
   hand: '<path d="M12 12V4.5a1.5 1.5 0 0 1 3 0V11"/><path d="M15 11V7.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1a6 6 0 0 1-5-2.7L3.6 14a1.5 1.5 0 0 1 2.5-1.6L8 15V6.500a1.5 1.5 0 0 1 3 0V11"/>',
   layers: '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/><path d="M3 17.500l9 5 9-5"/>',
   x: '<path d="M6 6l12 12"/><path d="M18 6L6 18"/>',
+  play: '<path d="M8 5.6v12.8a.6.6 0 0 0 .9.5l10.3-6.4a.6.6 0 0 0 0-1L8.9 5.1a.6.6 0 0 0-.9.5z" fill="currentColor"/>',
   explode: '<rect x="9" y="9" width="6" height="6" rx="1"/><path d="M6.500 6.500L3 3"/><path d="M3 6.500V3h3.500"/><path d="M17.500 6.500L21 3"/><path d="M17.500 3H21v3.500"/><path d="M6.500 17.500L3 21"/><path d="M3 17.500V21h3.500"/><path d="M17.500 17.500L21 21"/><path d="M21 17.500V21h-3.500"/>',
   chart: '<path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M3 20h18"/>',
 };
@@ -90,7 +91,7 @@ app.innerHTML = `
     </header>
     <div class="card glass">
       <p>Un paradero inteligente, seguro y funcional.</p>
-      <a class="btn btn-w" href="#nodos">${ic('hand', 20)}Simulador</a>
+      <a class="btn btn-w" href="#nodos">${ic('play', 18)}Simulador</a>
     </div>
   </section>
 
@@ -113,6 +114,7 @@ app.innerHTML = `
   </section>
 
   <section class="scr team" id="equipo" data-section="equipo">
+    <span class="dawn" aria-hidden="true"></span>
     <h2 class="team-title">Equipo</h2>
     <ul class="people glass-l">
       ${TEAM.map((p, i) => `<li><span class="n">${i + 1}</span><span><b>${p.name}</b><i>${p.area}, ${p.extra}</i></span></li>`).join('')}
@@ -168,8 +170,8 @@ const stopIO = new IntersectionObserver(es => {
   for (const e of es) if (e.isIntersecting) setStop(sections.indexOf(e.target));
 }, { rootMargin: '-45% 0px -45% 0px' });
 sections.forEach(x => stopIO.observe(x));
-// la barra pasa a vidrio claro cuando Equipo llega arriba
-new IntersectionObserver(es => setTheme(es[0].isIntersecting), { rootMargin: '-60px 0px -88% 0px' }).observe($('#equipo'));
+// la barra pasa a vidrio claro cuando la parte ya clara de Equipo llega arriba (no antes: el amanecer empieza oscuro)
+new IntersectionObserver(es => setTheme(es[0].isIntersecting), { rootMargin: '-60px 0px -88% 0px' }).observe($('.team .dawn'));
 // anclas: scroll nativo (suave salvo con movimiento reducido)
 const goTo = id => $('#' + id).scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
 app.addEventListener('click', e => {
