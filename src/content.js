@@ -44,8 +44,8 @@ export const NODES = [
 export const TEAM = [
   { name: 'Alonso Reyna', area: 'Iluminación', role: 'Nodo 1, Iluminación', extra: 'Product Owner' },
   { name: 'Valeria Martínez', area: 'SOS', role: 'Nodo 2, SOS', extra: 'Scrum Master' },
-  { name: 'Michelle Lagos', area: 'Acceso', role: 'Nodo 3, Acceso', extra: 'Scrum Team' },
-  { name: 'Josué Patricio Mares', area: 'Ruta', role: 'Nodo 4, Ruta', extra: 'Scrum Team' },
-  { name: 'Ximena García', area: 'Barrotes', role: 'Nodo 5, Barrotes', extra: 'Scrum Team' },
+  { name: 'Michelle Lagos', area: 'Acceso', role: 'Nodo 3, Acceso', extra: 'Scrum Team, Hardware' },
+  { name: 'Josué Patricio Mares', area: 'Ruta', role: 'Nodo 4, Ruta', extra: 'Scrum Team, Software' },
+  { name: 'Ximena García', area: 'Barrotes', role: 'Nodo 5, Barrotes', extra: 'Scrum Team, Integración' },
 ];
 export const TEACHERS = 'Claudia Solís y Xochitl Zapata';
