@@ -50,6 +50,7 @@ const ic = (k, s = 22) => `<svg aria-hidden="true" width="${s}" height="${s}" vi
 /* ---------- contenido ---------- */
 const STOPS = [['inicio', 'Inicio'], ['nodos', 'Nodos'], ['equipo', 'Equipo']];
 const TILES = [['night', 'moon', 'Noche'], ['lamp', 'bulb', 'Luz'], ['sos', 'bell', 'SOS'], ['door', 'door', 'Puerta'], ['bus', 'bus', 'Camión'], ['bars', 'bars', 'Barrotes']];
+const TEAM_IC = ["bulb", "bell", "door", "bus", "bars"];   // icono del nodo de cada persona, en el orden de TEAM
 const FLOW = ['Sensor', 'NodeMCU', 'API Flask', 'MySQL', 'Looker'];
 
 // rutas del nodo 4: el sensor clasifica seis colores (Arduino_Reto_Josue.ino) y cada color es una ruta de la tabla rutas
@@ -117,7 +118,7 @@ app.innerHTML = `
     <span class="dawn" aria-hidden="true"></span>
     <h2 class="team-title">Equipo</h2>
     <ul class="people glass-l">
-      ${TEAM.map((p, i) => `<li><span class="n">${i + 1}</span><span><b>${p.name}</b><i><strong>${p.extra}</strong>, ${p.area}</i></span></li>`).join('')}
+      ${TEAM.map((p, i) => `<li><span class="n">${ic(TEAM_IC[i], 20)}</span><span><b>${p.name}</b><i><strong>${p.extra}</strong>, ${p.area}</i></span></li>`).join('')}
       <li><span class="n n-b">${ic('cap', 18)}</span><span><b>${TEACHERS}</b><i>Profesoras</i></span></li>
     </ul>
     <h2 class="flow-title">Del sensor al dashboard</h2>
