@@ -14,12 +14,7 @@
     <iframe id="f-madera" title="Maqueta 3D, versión de madera" tabindex="-1"></iframe>
     <div class="velo"></div>
 
-    <!-- barra de paradas, como la de la landing -->
-    <nav class="barra" aria-label="Partes de la presentación">
-      <img src="/safewait-logo.svg" alt="SafeWait">
-      <ol id="partes"><li data-part="pitch">Pitch</li><li data-part="maqueta">Maqueta</li><li data-part="dashboard">Dashboard</li></ol>
-      <span class="cuenta" id="cuenta"></span>
-    </nav>
+    <a class="marca" href="#1" aria-label="SafeWait"><img src="/safewait-logo.svg" alt=""><span>SafeWait</span></a>
 
     <!-- ============ PARTE 1: PITCH DE VENTAS (3 min) ============ -->
     <section class="slide" data-id="portada" data-part="pitch" data-shot="99">
@@ -30,11 +25,15 @@
       </div>
     </section>
 
-    <section class="slide" data-id="problema" data-part="pitch" data-shot="6">
-      <div class="col">
-        <p class="eyebrow" data-a="0">El problema</p>
-        <h2 data-lines>Esperar el camión|de noche|es un riesgo.</h2>
-        <p class="lede" data-a=".8">El paradero no tiene luz, no deja pedir ayuda y no dice qué camión viene.</p>
+    <!-- la situación: quien presenta la cuenta mientras la estudiante camina a la parada y espera sola -->
+    <section class="slide" data-id="situacion" data-part="pitch" data-shot="15">
+      <div class="col relato">
+        <p class="hora" data-a="0">10:00 p.m.</p>
+        <p class="paso suave" data-a=".5">Sales de clases.</p>
+        <p class="paso suave" data-a="2.8">Caminas diez minutos a la parada.</p>
+        <p class="paso" data-a="8.4">No hay luz.</p>
+        <p class="paso" data-a="10.2">No hay nadie.</p>
+        <p class="paso" data-a="12.0">No sabes cuándo llega el camión.</p>
       </div>
     </section>
 
@@ -42,7 +41,7 @@
     <section class="slide ancha brillo" data-id="cifras" data-part="pitch" data-shot="9">
       <div class="tope">
         <p class="eyebrow" data-a="0">El problema en datos</p>
-        <h2 class="medio" data-lines>Lo mide el INEGI.</h2>
+        <h2 class="medio" data-lines>Esperar el camión de noche es un riesgo.</h2>
       </div>
       <div class="tiras vidrio" data-a=".5">
         <div class="tira" style="--t:1.0s" data-n="12"><p class="num">61.1&nbsp;%</p><p class="txt">de los adultos se siente inseguro en el transporte público.</p><div class="leds"></div></div>
@@ -178,6 +177,10 @@
       </div>
     </section>
 
+    <footer class="pie">
+      <ol class="partes" id="partes"><li data-part="pitch">Pitch</li><li data-part="maqueta">Maqueta</li><li data-part="dashboard">Dashboard</li></ol>
+      <p class="cuenta" id="cuenta"></p>
+    </footer>
     <p class="crono" id="crono" hidden></p>
     <div class="avance"><i id="avance"></i></div>
   </div>

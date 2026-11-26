@@ -22,12 +22,13 @@ const TRAVEL = 1.7;                   // lo que dura el viaje entre dos slides
 
 // valores que se mezclan al cambiar de slide
 const NUM = ['night', 'lamp', 'door', 'bars', 'oled', 'lift', 'explode', 'xray', 'hlSos', 'hlDoor', 'hlBars', 'sway', 'velo', 'out'];
-const BASE = { cam: 'lado', cam2: null, camK: 0, ang: 0, zoom: 1, night: 0, lamp: 0, door: 0, bars: 0, oled: 0, lift: 0, explode: 0, xray: 0, hlSos: 0, hlDoor: 0, hlBars: 0, sway: .05, velo: 0, out: 0, busT: null, sosT: null, keysT: null };
+const BASE = { cam: 'lado', cam2: null, camK: 0, ang: 0, zoom: 1, night: 0, lamp: 0, door: 0, bars: 0, oled: 0, lift: 0, explode: 0, xray: 0, hlSos: 0, hlDoor: 0, hlBars: 0, sway: .05, velo: 0, out: 0, girlT: null, busT: null, sosT: null, keysT: null };
 
 // una pose por slide (t = segundos desde que entró la slide)
 const POSES = {
   portada: () => ({}),
-  problema: () => ({ night: 1, ang: -.1 }),
+  // la situación: de noche, una estudiante camina sola a la parada, se detiene y espera viendo el celular (girlT mueve todo)
+  situacion: t => ({ night: 1.09, sway: .012, girlT: t }),   // night > 1: más oscuro que las demás slides de noche
   // datos y personas: la maqueta se hace a un lado (out) y deja toda la pantalla
   cifras: () => ({ night: 1, out: 1, ang: -.1 }),
   personas: () => ({ night: 1, out: 1, ang: -.1 }),
@@ -72,13 +73,14 @@ export function setupPitch(c) {
       alto: CON_BASE ? c.fit({ cx: W * .71, cy: H * .38, w: W * .38, h: H * .5 }, W, H, .8) : c.fit({ cx: W * .7, cy: H * .52, w: W * .54, h: H * .74 }, W, H, .82),
       abierto: CON_BASE ? c.fit({ cx: W * .7, cy: H * .585, w: W * .27, h: H * .29 }, W, H, .42) : c.fit({ cx: W * .7, cy: H * .6, w: W * .44, h: H * .5 }, W, H, .42),
       light: right(L[1][2], .18, 1.22), sos: right(L[2][2], .19, 1.42), door: right(L[3][2], .2, 1.3), route: right(L[4][2], .18, 1.28),
+      espera: { tgt: V(-6.5, 21.5, -9), off: V(15, 9, 62), vo: [-.2 * W, 0] },
       oled: right(L[5][2], .2, 1.1), keypad: right(L[7][2], .2, 1.2), bars: right(L[8][2], .2, 1.3),
     };
   }
   const pA = V(0, 0, 0), pB = V(0, 0, 0);
   // encuadre de una pose, ya en números: { pos, tgt, vo }
   function camOf(p) {
-    const a = cams[p.cam];
+    const a = typeof p.cam === 'string' ? cams[p.cam] : p.cam;
     const pos = pA.copy(a.off).applyAxisAngle(UP, p.ang).multiplyScalar(p.zoom).add(a.tgt).clone(), tgt = a.tgt.clone(), vo = [a.vo[0], a.vo[1]];
     if (p.cam2 && p.camK > 0) {
       const b = cams[p.cam2], k = p.camK;
@@ -89,12 +91,47 @@ export function setupPitch(c) {
   }
 
   /* ---------- de slide a slide ---------- */
-  let cur = 'portada', t0 = 0, dur = 0, from = null, last = null, asm0 = null;
+  let cur = 'portada', t0 = 0, dur = 0, from = null, last = null, asm0 = null, W0 = 1920, H0 = 1080;
+
+  /* ---------- la estudiante de la slide de la situación ---------- */
+  // llega caminando por la banqueta desde la derecha, se detiene frente a la puerta, voltea hacia la calle y saca el celular
+  const G = { x0: 30, x1: -6.5, z: -6.4, t0: 1.0, t1: 7.2, ciclo: 7.4 };
+  function girlAt(t) {
+    const u = ramp(t, G.t0, G.t1), k = (u + smooth(u)) / 2, x = G.x0 + (G.x1 - G.x0) * k;
+    const cel = sm(t, G.t1 + .8, G.t1 + 2.0);
+    // cada tanto levanta la vista y voltea a ver si viene el camión, un lado y luego el otro
+    const w = t - (G.t1 + 5.5), n = Math.floor(w / 8.5), giro = w > 0 ? (n % 2 ? -.6 : .75) * hold(w - n * 8.5, 0, 1.1, 3.0, 4.2) : 0;
+    return {
+      x, z: G.z, rot: -Math.PI / 2 + (Math.PI / 2 + .12) * sm(t, G.t1 - .35, G.t1 + .9),
+      fase: Math.abs(x - G.x0) / G.ciclo * Math.PI * 2, paso: sm(t, G.t0, G.t0 + .5) * (1 - sm(t, G.t1 - .7, G.t1)), cel, giro,
+    };
+  }
+  let girl = null;
+  const listo = CON_BASE ? Promise.resolve() : import('../video/personas.js').then(async m => {
+    const p = await m.loadPerson('estudiante', '/pitch-persona/');
+    p.visible = false; stage.root.add(p);
+    // en la oscuridad se pierde: un poco de luz propia, azulada, para que se distinga sin iluminar la escena
+    for (const mt of p.userData.mats) { mt.emissive = new THREE.Color(0x9dbdff); mt.emissiveMap = mt.map; mt.emissiveIntensity = .2; }
+    const luz = new THREE.PointLight(0xc4dcff, 0, 20, 2); stage.root.add(luz);
+    const tel = new THREE.Mesh(new THREE.BoxGeometry(.44, .82, .06), new THREE.MeshBasicMaterial({ color: 0xdcebff })); tel.visible = false; stage.root.add(tel);
+    // altura de la banqueta bajo su camino
+    stage.root.updateMatrixWorld(true);
+    const ray = new THREE.Raycaster(); ray.set(stage.root.localToWorld(V(12, 60, G.z)), V(0, -1, 0));
+    const ys = ray.intersectObjects(stage.meshes, false).map(h => stage.root.worldToLocal(h.point.clone()).y).filter(y => y < 17.5);
+    girl = { p, luz, tel, y: ys.length ? Math.max(...ys) : CAD.baseTop + .6, animar: m.animar };
+  }).catch(e => console.warn('persona:', e));
   const busIn = t => t < 0 ? null : BUS.a + (BUS.stop - BUS.a) * (1 - Math.pow(1 - ramp(t, 0, 3.4), 2.2));
 
   // estado completo en el instante now: la pose de la slide actual, mezclada con lo que había al cambiar
   function compute(now) {
     const tau = now - t0, to = { ...BASE, ...(POSES[cur] || POSES.portada)(tau) };
+    let g = null;
+    if (to.girlT != null) { // la cámara la sigue de cerca mientras camina y luego se abre: ella queda chica, sola frente a la caseta apagada
+      g = girlAt(to.girlT);
+      to.cam = { tgt: V(g.x - 3.5, (girl ? girl.y : 16.3) + 6.2, g.z), off: V(-9, 4, 40), vo: [-.15 * W0, .02 * H0] };
+      to.cam2 = 'espera'; to.camK = sm(to.girlT, G.t1 - .4, G.t1 + 2.8);
+      to.velo = 1 - to.camK;   // de cerca, el lado del texto se funde con la noche para que se lea
+    }
     const e = dur ? ease(clamp(tau / dur)) : 1, cam = camOf(to), P = { busX: null, sosT: to.sosT, keysT: to.keysT };
     for (const k of NUM) P[k] = from && e < 1 ? from[k] + (to[k] - from[k]) * e : to[k];
     if (from && e < 1) {
@@ -102,6 +139,7 @@ export function setupPitch(c) {
       cam.vo = [from.vo[0] + (cam.vo[0] - from.vo[0]) * e, from.vo[1] + (cam.vo[1] - from.vo[1]) * e];
     }
     Object.assign(P, cam);
+    P.girl = g || (from && e < 1 ? from.girl : null);
     // camión: llega con su slide; al salir de ella no se desvanece, se va rodando hacia la izquierda
     if (to.busT != null) P.busX = busIn(to.busT);
     else if (from && from.busX != null) { const b = ramp(tau, 0, 2.6); P.busX = b < 1 ? from.busX + (BUS.b - from.busX) * Math.pow(b, 2.2) : null; }
@@ -127,7 +165,7 @@ export function setupPitch(c) {
   function render(now, fijo) {
     const W = document.documentElement.clientWidth, H = window.innerHeight;
     if (!W || !H) return null;
-    if (camKey !== W + 'x' + H) { camKey = W + 'x' + H; stage.resize(); cams = buildCams(W, H); from = null; }
+    if (camKey !== W + 'x' + H) { camKey = W + 'x' + H; W0 = W; H0 = H; stage.resize(); cams = buildCams(W, H); from = null; }
     if (asm0 == null) asm0 = now;
     const P = last = compute(now);
 
@@ -141,7 +179,7 @@ export function setupPitch(c) {
     details.update(asmT, SCALE);
 
     const s = view.state;
-    s.night = .92 * P.night; s.dark = P.night; s.lamp = P.lamp;
+    s.night = Math.min(1, .92 * P.night); s.dark = Math.min(1, P.night); s.lamp = P.lamp;
     s.door = Math.max(P.door, tA < 5 ? 1 - sm(tA, 3.0, 4.1) : 0);
     s.bars = P.bars; s.oled = P.oled; s.explode = P.explode; s.xray = P.xray;
     s.roof = 0; s.sos = 0; s.busX = null; s.hl = null; s.plinth = !!CON_BASE;
@@ -176,6 +214,19 @@ export function setupPitch(c) {
     });
     fsrPad.position.y = SOS_P.y - .09 * padK;
 
+    // la estudiante: su pose de este cuadro, y el celular con su luz en la mano derecha
+    if (girl) {
+      const q = P.girl; girl.p.visible = !!q;
+      if (q) {
+        girl.p.position.set(q.x, girl.y, q.z); girl.p.rotation.y = q.rot;
+        girl.animar(girl.p, 'anda', q);
+        const B = girl.p.userData.bones, hand = stage.root.worldToLocal(B.RHand.getWorldPosition(tmp)).clone(), head = stage.root.worldToLocal(B.Head.getWorldPosition(tmp)).clone();
+        girl.tel.position.copy(hand).lerp(head, .16); girl.tel.lookAt(stage.root.localToWorld(head.clone()));
+        girl.luz.position.copy(hand).lerp(head, .38);
+      }
+      girl.tel.visible = !!q && q.cel > .6; girl.luz.intensity = q ? q.cel * 13 : 0;
+    }
+
     // cámara, con un vaivén muy lento para que la imagen nunca quede congelada
     const cam = view.camera, a = fijo ? 0 : P.sway * Math.sin(now * .42);
     sw.copy(P.pos).sub(P.tgt).applyAxisAngle(UP, a).add(P.tgt);
@@ -204,7 +255,7 @@ export function setupPitch(c) {
         d.style.transform = `scale(${(.72 + .28 * on).toFixed(3)})`;
       });
     }
-    return { night: P.night, velo: P.velo };
+    return { night: Math.min(1, P.night), velo: P.velo };
   }
 
   // dónde cae en pantalla el ancla de cada nodo (fracciones del ancho y el alto)
@@ -212,5 +263,5 @@ export function setupPitch(c) {
     return keys.map(k => { const p = tmp.copy(ANCHORS[k]).project(view.camera); return [p.x * .5 + .5, -p.y * .5 + .5]; });
   }
 
-  window.pitch = { go, render, project };
+  window.pitch = { go, render, project, listo };
 }

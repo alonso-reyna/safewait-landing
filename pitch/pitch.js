@@ -114,6 +114,7 @@ function show(i, instant = false) {
   const part = s.dataset.part;
   if (!(part in inicio) && (part !== 'pitch' || i > 0)) inicio[part] = now();
   partes.forEach(p => p.classList.toggle('aqui', p.dataset.part === part));
+  deck.classList.toggle('sin-marca', s.dataset.id === 'portada' || s.dataset.id === 'solucion' || s.dataset.id === 'gracias');
   $('#cuenta').textContent = String(i + 1).padStart(2, '0') + ' / ' + slides.length;
   $('#avance').style.transform = `scaleX(${((i + 1) / slides.length).toFixed(4)})`;
   if (location.hash !== '#' + (i + 1)) history.replaceState(null, '', location.pathname + location.search + '#' + (i + 1));
@@ -161,6 +162,6 @@ window.foto = async i => {
 window.total = slides.length;
 await ready(fA);
 show(idx, true);
-if (FIJO) { await ready(fM); await window.foto(idx); }
+if (FIJO) { await ready(fM); await api(fA).listo; await window.foto(idx); }
 else { requestAnimationFrame(tick); ready(fM).then(a => a.go(slides[idx].dataset.id, now(), true)); }
 window.listo = true;

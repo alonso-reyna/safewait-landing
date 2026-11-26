@@ -8,7 +8,7 @@ const DIR = '/video/personas/';
 const ESCALA = 1 / 15;                 // la puerta de la maqueta mide 14 cm: 2.1 m a escala 1:15
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const texLoader = new THREE.TextureLoader();
-const tex = f => new Promise(r => texLoader.load(DIR + f, t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; r(t); }, undefined, () => r(null)));
+const tex = (f, dir = DIR) => new Promise(r => texLoader.load(dir + f, t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; r(t); }, undefined, () => r(null)));
 
 // [archivo FBX, prefijo de texturas]
 export const ELENCO = {
@@ -17,10 +17,10 @@ export const ELENCO = {
   mama: ['Female_Adult_17', 'f006'], nino: ['Male_Child_01', 'cm001'],
 };
 
-export async function loadPerson(key) {
+export async function loadPerson(key, dir = DIR) {
   const [file, pre] = ELENCO[key];
-  const fbx = await new Promise((res, rej) => new FBXLoader().load(DIR + file + '.fbx', res, undefined, rej));
-  const [body, head, opa] = await Promise.all([tex(pre + '_body_color.jpg'), tex(pre + '_head_color.jpg'), tex(pre + '_opacity_color.png')]);
+  const fbx = await new Promise((res, rej) => new FBXLoader().load(dir + file + '.fbx', res, undefined, rej));
+  const [body, head, opa] = await Promise.all([tex(pre + '_body_color.jpg', dir), tex(pre + '_head_color.jpg', dir), tex(pre + '_opacity_color.png', dir)]);
   const mats = [];
   fbx.traverse(o => {
     if (!o.isMesh) return;
@@ -42,6 +42,10 @@ export async function loadPerson(key) {
   const root = new THREE.Group(); root.add(inner);
   root.userData = { bones, inner, fbx, mats, key };
   ground(root);
+  // para animar: la pose neutra de cada hueso y la altura a la que quedan los pies
+  root.userData.rest = Object.values(bones).map(o => [o, o.quaternion.clone()]);
+  root.userData.y0 = inner.position.y;
+  root.userData.pie0 = pieMin(root);
   return root;
 }
 
@@ -138,6 +142,20 @@ export const POSES = {
     relaxed(p, 'L'); arm(p, 'R', [.16, -1, .1], [-.5, -.2, .85]);
     turn(p, 'Head', Y, giro); turn(p, 'Head', X, -.08);
   },
+  // animada (presentación): camina con la fase `fase` y la amplitud `paso` (0 = de pie); `cel` (0 a 1) levanta el celular
+  // con la mano derecha y baja la mirada; `giro` voltea la cabeza
+  anda(p, { fase = 0, paso = 1, cel = 0, giro = 0 } = {}) {
+    const s = Math.sin(fase), c = Math.cos(fase), A = .38 * paso, K = .7 * paso, sw = .26 * paso * s;
+    const m = (a, b) => a.map((v, i) => v + (b[i] - v) * cel);
+    // la rodilla se dobla mientras la pierna va de atrás hacia adelante (el pie se despega del piso)
+    leg(p, 'L', [.04, -1, A * s], [0, -1, A * s - K * Math.max(0, c) - .05], [.1, -.45, 1]);
+    leg(p, 'R', [.04, -1, -A * s], [0, -1, -A * s - K * Math.max(0, -c) - .05], [.1, -.45, 1]);
+    relaxed(p, 'L', -sw);
+    arm(p, 'R', m([.16, -1, .04 + sw], [.12, -1, .22]), m([.1, -1, .22 + sw], [-.5, .55, .85]), m([.05, -1, .25 + sw], [-.5, .7, .4]));
+    turn(p, 'Spine1', X, .05 * paso);
+    turn(p, 'Neck', X, .3 * cel * (1 - Math.min(1, Math.abs(giro) * 2))); turn(p, 'Head', X, .25 * cel * (1 - Math.min(1, Math.abs(giro) * 2)));
+    turn(p, 'Head', Y, giro);
+  },
   // caminando; mano: 'L' | 'R' va tomada de alguien más bajo
   camina(p, { mano = '', alto = 0 } = {}) {
     leg(p, 'L', [.04, -1, .42], [0, -1, .12], [.1, -.4, 1]); leg(p, 'R', [.04, -1, -.3], [0, -.8, -.6], [.1, -.9, .6]);
@@ -149,6 +167,25 @@ export const POSES = {
 };
 
 export function pose(p, name, opts) { POSES[name](p, opts); ground(p); return p; }
+
+// altura (en el marco de la persona) del hueso de pie más bajo
+const PIES = ['LFoot', 'RFoot', 'LToe0', 'RToe0'], pv = V(0, 0, 0);
+function pieMin(p) {
+  p.updateMatrixWorld(true);
+  let y = Infinity;
+  for (const k of PIES) { const o = p.userData.bones[k]; if (o) y = Math.min(y, p.worldToLocal(o.getWorldPosition(pv)).y); }
+  return y;
+}
+// pose para animación: se llama en cada cuadro. Parte siempre de la pose neutra y apoya los pies por sus huesos
+// (sin recorrer la malla, que es lo que hace ground y es caro para repetirlo 60 veces por segundo)
+export function animar(p, name, opts) {
+  const u = p.userData;
+  for (const [o, q0] of u.rest) o.quaternion.copy(q0);
+  u.inner.position.y = u.y0;
+  POSES[name](p, opts);
+  u.inner.position.y += u.pie0 - pieMin(p);
+  return p;
+}
 // tinte de un solo tono (versión azul): conserva la luz y la sombra de la textura pero en la gama del color dado
 export function tint(p, color, k = 1) {
   for (const m of p.userData.mats) {
