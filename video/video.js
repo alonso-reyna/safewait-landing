@@ -347,7 +347,11 @@ function frame(time) {
 const raf = () => new Promise(r => requestAnimationFrame(r));
 window.DUR = DUR; window.stage = stage; window.view = view;
 window.seek = async t => { frame(t); await raf(); await raf(); };
-if (params.has('poster')) {
+if (params.has('pitch')) {
+  // presentación (/pitch/): la página de afuera decide qué se dibuja en cada slide
+  const { setupPitch } = await import('../pitch/escena.js');
+  setupPitch({ stage, view, bus, roofG, ROOF_UP, details, presses, sosFx, HLK, HI, doorMat, fsrPad, SOS_P, TOTAL, SCALE, el, buildCam, fit, roadY, BUS: { stop: BUS_STOP, a: BUS_A, b: BUS_B, axf: AXF, axr: AXR }, GLOW, params });
+} else if (params.has('poster')) {
   const { setupPoster } = await import('./poster.js');
   await setupPoster({ stage, view, frame, bus, roofG, ROOF_UP, roofSet, el, params, MADERA, TONE });
 } else if (params.has('capture')) frame(0);
