@@ -2,7 +2,7 @@
 // La página de afuera (pitch.js) manda: go(id, now) cambia de slide y render(now) dibuja un cuadro.
 // Cada slide es una "pose": valores de la maqueta y un encuadre, en función del tiempo que lleva la slide (tau).
 import * as THREE from 'three';
-import { ANCHORS, CAD } from '../src/scene.js';
+import { ANCHORS, CAD, COLOR } from '../src/scene.js';
 import { KEYPAD_TOP } from '../src/detail.js';
 import { CODE } from '../video/guion.js';
 
@@ -21,17 +21,18 @@ const SOS_0 = 2.0, SOS_EVERY = 2.8;   // primer pulso del SOS y cada cuánto se 
 const TRAVEL = 1.7;                   // lo que dura el viaje entre dos slides
 
 // valores que se mezclan al cambiar de slide
-const NUM = ['night', 'lamp', 'door', 'bars', 'oled', 'lift', 'explode', 'xray', 'hlSos', 'hlDoor', 'hlBars', 'sway', 'velo', 'out'];
-const BASE = { cam: 'lado', cam2: null, camK: 0, ang: 0, zoom: 1, night: 0, lamp: 0, door: 0, bars: 0, oled: 0, lift: 0, explode: 0, xray: 0, hlSos: 0, hlDoor: 0, hlBars: 0, sway: .05, velo: 0, out: 0, girlT: null, busT: null, sosT: null, keysT: null };
+const NUM = ['night', 'lamp', 'door', 'bars', 'oled', 'lift', 'explode', 'xray', 'hlSos', 'hlDoor', 'hlBars', 'sway', 'velo', 'out', 'feo'];
+const BASE = { cam: 'lado', cam2: null, camK: 0, ang: 0, zoom: 1, night: 0, lamp: 0, door: 0, bars: 0, oled: 0, lift: 0, explode: 0, xray: 0, hlSos: 0, hlDoor: 0, hlBars: 0, sway: .05, velo: 0, out: 0, feo: 0, girlT: null, busT: null, sosT: null, keysT: null };
 
 // una pose por slide (t = segundos desde que entró la slide)
 const POSES = {
   portada: () => ({}),
   // la situación: de noche, una estudiante camina sola a la parada, se detiene y espera viendo el celular (girlT mueve todo)
-  situacion: t => ({ night: 1.09, sway: .012, girlT: t }),   // night > 1: más oscuro que las demás slides de noche
+  // feo: en vez de la caseta de SafeWait se ve la parada de hoy (banca, poste, farol que falla, basura)
+  situacion: t => ({ night: 1.09, sway: .012, girlT: t, feo: 1 }),   // night > 1: más oscuro que las demás slides de noche
   // datos y personas: la maqueta se hace a un lado (out) y deja toda la pantalla
-  cifras: () => ({ night: 1, out: 1, ang: -.1 }),
-  personas: () => ({ night: 1, out: 1, ang: -.1 }),
+  cifras: () => ({ night: 1, out: 1, ang: -.1, feo: 1 }),
+  personas: () => ({ night: 1, out: 1, ang: -.1, feo: 1 }),
   // SafeWait se presenta: la maqueta regresa, enciende su luz y, un momento después, amanece
   solucion: t => ({ lamp: sm(t, .7, 2.2), night: 1 - sm(t, 4.2, 6.4), ang: .22 * (1 - sm(t, 0, 5)) }),
   luz: t => ({ cam: 'light', lift: 1, night: sm(t, 1.7, 3.2), lamp: sm(t, 2.8, 4.4) }),
@@ -54,6 +55,7 @@ const POSES = {
 export function setupPitch(c) {
   const { stage, view, bus, roofG, ROOF_UP, details, presses, sosFx, HLK, HI, doorMat, fsrPad, SOS_P, TOTAL, SCALE, el, BUS, GLOW, params, CON_BASE } = c;
   for (const id of ['label', 'end']) document.getElementById(id).style.display = 'none';
+  el.gl = document.getElementById('gl');
   const ARMADO = params.has('armado');           // la maqueta arranca ya armada
   // el video cuelga el techo de un grupo aparte (roofG); la vista explotada guardó sus medidas en el espacio del padre original,
   // así que se recalculan en el de roofG: si no, al explotar el techo sale volando
@@ -73,7 +75,7 @@ export function setupPitch(c) {
       alto: CON_BASE ? c.fit({ cx: W * .71, cy: H * .38, w: W * .38, h: H * .5 }, W, H, .8) : c.fit({ cx: W * .7, cy: H * .52, w: W * .54, h: H * .74 }, W, H, .82),
       abierto: CON_BASE ? c.fit({ cx: W * .7, cy: H * .585, w: W * .27, h: H * .29 }, W, H, .42) : c.fit({ cx: W * .7, cy: H * .6, w: W * .44, h: H * .5 }, W, H, .42),
       light: right(L[1][2], .18, 1.22), sos: right(L[2][2], .19, 1.42), door: right(L[3][2], .2, 1.3), route: right(L[4][2], .18, 1.28),
-      espera: { tgt: V(-6.5, 21.5, -9), off: V(15, 9, 62), vo: [-.2 * W, 0] },
+      espera: { tgt: V(-6, 23.5, -9), off: V(14, 6, 64), vo: [-.2 * W, 0] },
       oled: right(L[5][2], .2, 1.1), keypad: right(L[7][2], .2, 1.2), bars: right(L[8][2], .2, 1.3),
     };
   }
@@ -106,7 +108,59 @@ export function setupPitch(c) {
       fase: Math.abs(x - G.x0) / G.ciclo * Math.PI * 2, paso: sm(t, G.t0, G.t0 + .5) * (1 - sm(t, G.t1 - .7, G.t1)), cel, giro,
     };
   }
-  let girl = null;
+  let girl = null, fea = null, feoOn = false, ocultos = null;
+  const caseta = [];
+  { // la caseta se esconde justo al dibujar y se restaura al terminar, para no pelear con lo que la escena decide en cada cuadro
+    const antes = stage.scene.onBeforeRender, despues = stage.scene.onAfterRender;
+    stage.scene.onBeforeRender = function () { antes.apply(this, arguments); if (feoOn) { for (const o of caseta) { o.userData.vis = o.visible; o.visible = false; } ocultos = caseta; } };
+    stage.scene.onAfterRender = function () { if (despues) despues.apply(this, arguments); if (ocultos) { for (const o of ocultos) o.visible = o.userData.vis; ocultos = null; } };
+  }
+  // la parada de hoy: una banca maltratada, un poste de parada chueco, un farol que parpadea y se apaga, basura y manchas
+  function paradaFea(y) {
+    const g = new THREE.Group(); g.visible = false;
+    let seed = 7; const rnd = (a = 0, b = 1) => { seed = (seed * 16807) % 2147483647; return a + (b - a) * (seed / 2147483647); };
+    const mat = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: .95, ...o });
+    const M = { madera: mat(0x9a8c7c), metal: mat(0x7f8896, { roughness: .7 }), oxido: mat(0x8a6f5c), papel: mat(0xc9ccd4), lata: mat(0xa5574e), vidrio: mat(0x5f8a72, { roughness: .4 }), hierba: mat(0x5f7d5c) };
+    const add = (geo, m, x, yy, z, rx = 0, ry = 0, rz = 0, par = g) => { const o = new THREE.Mesh(geo, m); o.position.set(x, yy, z); o.rotation.set(rx, ry, rz); o.castShadow = o.receiveShadow = true; par.add(o); return o; };
+    const box = (w, h, d) => new THREE.BoxGeometry(w, h, d), cyl = (r1, r2, h, n = 10, open = false) => new THREE.CylinderGeometry(r1, r2, h, n, 1, open);
+    // banca: dos tablas de asiento, un respaldo entero y el otro colgando de un solo tornillo
+    const b = new THREE.Group(); b.position.set(-15.5, y, -10.2); b.rotation.y = .05; g.add(b);
+    add(box(13, .42, 1.35), M.madera, 0, 3.0, .75, 0, 0, 0, b); add(box(13, .42, 1.35), M.madera, 0, 2.94, -.8, 0, 0, .012, b);
+    add(box(13, .42, 1.3), M.madera, 0, 5.9, -1.75, .2, 0, 0, b);
+    add(box(12.4, .42, 1.3), M.madera, -.9, 3.9, -1.9, .2, 0, -.2, b);
+    for (const x of [-5.6, 5.6]) { add(box(.45, 3, .45), M.oxido, x, 1.5, 1.1, 0, 0, 0, b); add(box(.45, 6.6, .45), M.oxido, x, 3.3, -1.5, .12, 0, 0, b); add(box(.4, .4, 2.9), M.oxido, x, 2.7, -.2, 0, 0, 0, b); }
+    // poste de la parada, inclinado, con su letrero despintado
+    const p = new THREE.Group(); p.position.set(-25.5, y, -9.6); p.rotation.set(.03, 0, -.09); g.add(p);
+    add(cyl(.22, .22, 15), M.metal, 0, 7.5, 0, 0, 0, 0, p); add(box(3.4, 3.4, .16), M.oxido, 0, 13.2, .25, 0, 0, .06, p); add(box(2.2, .5, .18), M.papel, -.2, 13.7, .28, 0, 0, .06, p);
+    // farol viejo: casi no alumbra
+    const f = new THREE.Group(); f.position.set(-1.5, y, -12.2); f.rotation.z = .035; g.add(f);
+    add(cyl(.26, .36, 21), M.metal, 0, 10.5, 0, 0, 0, 0, f); add(box(.3, .3, 5.2), M.metal, 0, 21, 2.4, 0, 0, 0, f);
+    add(box(1.5, .5, 2.4), M.metal, 0, 20.75, 4.6, 0, 0, 0, f);
+    const foco = add(box(1.1, .12, 1.9), new THREE.MeshStandardMaterial({ color: 0x2a2620, emissive: 0xffc27a, emissiveIntensity: 0 }), 0, 20.46, 4.6, 0, 0, 0, f);
+    const luzF = new THREE.PointLight(0xffb866, 0, 70, 1.6); luzF.position.set(0, 19.6, 4.6); f.add(luzF);
+    // bote volteado y basura regada
+    add(cyl(1.7, 1.45, 4.4, 12, true), mat(0x6f7a86, { side: THREE.DoubleSide }), -7.6, y + 1.6, -11.3, 0, .5, Math.PI / 2);
+    for (let i = 0; i < 16; i++) {
+      const x = rnd(-24, 2), z = rnd(-11.6, -4.2), k = Math.floor(rnd(0, 4));
+      if (k === 0) add(cyl(.38, .38, 1.1, 8), M.lata, x, y + .38, z, Math.PI / 2, rnd(0, 3), 0);
+      else if (k === 1) add(new THREE.IcosahedronGeometry(rnd(.45, .75), 0), M.papel, x, y + .35, z, rnd(0, 3), rnd(0, 3), 0);
+      else if (k === 2) add(box(rnd(1, 1.9), .06, rnd(.8, 1.5)), M.papel, x, y + .05, z, 0, rnd(0, 3), 0);
+      else add(cyl(.26, .3, 1.5, 8), M.vidrio, x, y + .3, z, Math.PI / 2, rnd(0, 3), 0);
+    }
+    // manchas en la banqueta, un charco y hierba en las orillas
+    for (let i = 0; i < 7; i++) { const o = add(new THREE.CircleGeometry(rnd(1.6, 4.4), 14), new THREE.MeshBasicMaterial({ color: 0x030611, transparent: true, opacity: rnd(.22, .42), depthWrite: false }), rnd(-26, 6), y + .03 + i * .004, rnd(-11.5, -4.5), -Math.PI / 2); o.scale.x = rnd(.6, 1.5); o.castShadow = false; }
+    { const o = add(new THREE.CircleGeometry(2.3, 18), new THREE.MeshStandardMaterial({ color: 0x16284c, roughness: .1, metalness: .35, transparent: true, opacity: .6, depthWrite: false }), 4.6, y + .06, -5.6, -Math.PI / 2); o.scale.x = 1.5; o.castShadow = false; }
+    for (const [x, z] of [[-25.8, -9.2], [-25.1, -10.1], [-1.9, -12.6], [-1.0, -11.7], [-21.4, -11.4], [-9.8, -11.7], [5.5, -11.2]]) for (let i = 0; i < 4; i++) add(new THREE.ConeGeometry(.22, rnd(1.1, 2.3), 4), M.hierba, x + rnd(-.5, .5), y + .7, z + rnd(-.4, .4), rnd(-.3, .3), 0, rnd(-.3, .3));
+    return { g, luzF, foco };
+  }
+  // el farol titila débil mientras ella camina y se apaga para siempre justo cuando llega
+  function farol(t) {
+    if (t > 8.7) return 0;
+    const n = Math.sin(t * 23.1) * Math.sin(t * 7.3 + 1.3) * Math.sin(t * 41.7 + .4);
+    let k = .34 + .2 * Math.sin(t * 3.1) + (n > .22 ? .45 : 0) - (Math.sin(t * 13.7) > .9 ? .5 : 0);
+    if (t > 7.5) k *= (Math.sin(t * 39) > -.2 ? 1 : .1) * (1 - sm(t, 7.5, 8.7));
+    return clamp(k);
+  }
   const listo = CON_BASE ? Promise.resolve() : import('../video/personas.js').then(async m => {
     const p = await m.loadPerson('estudiante', '/pitch-persona/');
     p.visible = false; stage.root.add(p);
@@ -118,7 +172,19 @@ export function setupPitch(c) {
     stage.root.updateMatrixWorld(true);
     const ray = new THREE.Raycaster(); ray.set(stage.root.localToWorld(V(12, 60, G.z)), V(0, -1, 0));
     const ys = ray.intersectObjects(stage.meshes, false).map(h => stage.root.worldToLocal(h.point.clone()).y).filter(y => y < 17.5);
-    girl = { p, luz, tel, y: ys.length ? Math.max(...ys) : CAD.baseTop + .6, animar: m.animar };
+    const gy = ys.length ? Math.max(...ys) : CAD.baseTop + .6;
+    girl = { p, luz, tel, y: gy, animar: m.animar };
+    fea = paradaFea(gy); stage.root.add(fea.g);
+    // todo lo que se levanta de la banqueta es SafeWait (caseta, módulo, pinos): se oculta mientras se ve la parada fea
+    const techo = stage.root.localToWorld(V(0, gy + 1.2, 0)).y, bb = new THREE.Box3(), aparte = new Set([p, fea.g, bus.group, luz, tel]);
+    const dentro = o => { for (let q = o; q; q = q.parent) if (aparte.has(q)) return true; return false; };
+    const c = V(0, 0, 0), sz = V(0, 0, 0), sensor = stage.root.localToWorld(V(COLOR.x, CAD.baseTop, COLOR.z));
+    stage.root.traverse(o => {
+      if (!(o.isMesh || o.isLine) || dentro(o) || bb.setFromObject(o).isEmpty()) return;
+      bb.getCenter(c); bb.getSize(sz);
+      // también el sensor de color que asoma en la calle
+      if (bb.max.y > techo || (Math.hypot(c.x - sensor.x, c.z - sensor.z) < 3.5 && Math.max(sz.x, sz.z) < 7)) caseta.push(o);
+    });
   }).catch(e => console.warn('persona:', e));
   const busIn = t => t < 0 ? null : BUS.a + (BUS.stop - BUS.a) * (1 - Math.pow(1 - ramp(t, 0, 3.4), 2.2));
 
@@ -216,7 +282,7 @@ export function setupPitch(c) {
 
     // la estudiante: su pose de este cuadro, y el celular con su luz en la mano derecha
     if (girl) {
-      const q = P.girl; girl.p.visible = !!q;
+      const q = fea && P.feo > .5 ? P.girl : null; girl.p.visible = !!q;   // ella solo existe en la parada fea
       if (q) {
         girl.p.position.set(q.x, girl.y, q.z); girl.p.rotation.y = q.rot;
         girl.animar(girl.p, 'anda', q);
@@ -226,6 +292,14 @@ export function setupPitch(c) {
       }
       girl.tel.visible = !!q && q.cel > .6; girl.luz.intensity = q ? q.cel * 13 : 0;
     }
+    // parada fea o caseta de SafeWait: el cambio pasa con la imagen fundida a la noche, así nunca se ve el brinco
+    feoOn = !!fea && P.feo > .5;
+    if (fea) {
+      fea.g.visible = feoOn;
+      const k = feoOn && cur === 'situacion' ? farol(now - t0) : 0;
+      fea.luzF.intensity = k * 280; fea.foco.material.emissiveIntensity = k * 2.4;
+    }
+    el.gl.style.opacity = sm(Math.abs(P.feo - .5) * 2, .2, 1).toFixed(3);
 
     // cámara, con un vaivén muy lento para que la imagen nunca quede congelada
     const cam = view.camera, a = fijo ? 0 : P.sway * Math.sin(now * .42);
