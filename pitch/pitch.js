@@ -6,15 +6,15 @@
 import '@fontsource-variable/inter';
 import '@fontsource-variable/inter-tight';
 import './pitch.css';
-import { CONFIG, TEAM } from '../src/content.js';
+import { CONFIG, TEAM, TEACHERS } from '../src/content.js';
 
-// Los cinco nodos, dichos como beneficio (pitch) y como ubicación en la maqueta (distribución).
+// Los cinco nodos: el beneficio (pitch), sus piezas (distribución) y lo que registran (base de datos).
 const NODOS = [
-  { name: 'Iluminación', anchor: 'light', title: 'Nunca esperas|a oscuras.', text: 'Cuando oscurece, la caseta se ilumina sola.', where: 'Sensor de luz afuera, tira LED dentro de la caseta.' },
-  { name: 'SOS', anchor: 'sos', title: 'Pides ayuda|con una mano.', text: 'Presionas el botón y la alarma avisa a quien esté cerca.', where: 'Sensor de fuerza en el muro del fondo, alarma afuera.' },
-  { name: 'Acceso', anchor: 'door', title: 'Solo entra quien|trae tarjeta.', text: 'La puerta abre con tu tarjeta y se cierra sola detrás de ti.', where: 'Lector de tarjetas y motor que desliza la puerta.' },
-  { name: 'Ruta', anchor: 'route', title: 'Sabes qué|camión llegó.', text: 'La pantalla te dice la ruta, sin salir a leer el número.', where: 'Sensor de color en la calle, pantalla dentro de la caseta.' },
-  { name: 'Barrotes', anchor: 'bars', title: 'La caseta se cierra|con una clave.', text: 'Tecleas tu clave y los barrotes cubren las ventanas.', where: 'Teclado afuera, motor escondido bajo la banqueta.' },
+  { name: 'Iluminación', anchor: 'light', title: 'Nunca esperas a oscuras.', parts: 'Sensor de luz y tira LED', event: 'Luces encendidas', side: 'der' },
+  { name: 'SOS', anchor: 'sos', title: 'Pides ayuda con una mano.', parts: 'Sensor de fuerza y alarma', event: 'Alerta activada', side: 'izq' },
+  { name: 'Acceso', anchor: 'door', title: 'Solo entra quien trae tarjeta.', parts: 'Lector de tarjetas y puerta', event: 'Tarjeta autorizada', side: 'izq' },
+  { name: 'Ruta', anchor: 'route', title: 'Sabes qué camión llegó.', parts: 'Sensor de color y pantalla', event: 'Ruta 2 detectada', side: 'izq' },
+  { name: 'Barrotes', anchor: 'bars', title: 'La caseta se cierra con una clave.', parts: 'Teclado y motor', event: 'Barrotes arriba', side: 'der' },
 ];
 // tiempo de cada parte calificada (segundos), para el cronómetro
 const LIMITE = { pitch: 180, maqueta: 120, dashboard: 180 };
@@ -32,15 +32,23 @@ document.documentElement.classList.toggle('fijo', FIJO);
 document.querySelectorAll('.slide.nodo').forEach(s => {
   const n = +s.dataset.node, d = NODOS[n - 1];
   s.innerHTML = `<div class="col">
-    <p class="meta" data-a="0"><b>0${n}</b><i></i><span>05</span><em>${d.name}</em></p>
-    <h2 data-lines>${d.title}</h2>
-    <p class="lede" data-a=".7">${d.text}</p>
-    <div class="pasos" data-a="1">${NODOS.map((_, i) => `<i class="${i + 1 < n ? 'hecho' : i + 1 === n ? 'aqui' : ''}"></i>`).join('')}</div>
+    <h2><span class="ln"><span style="--d:.1s"><b>0${n}</b>${d.name}</span></span></h2>
+    <p class="sub" data-a=".5">${d.title}</p>
+    <div class="pasos" data-a=".8">${NODOS.map((_, i) => `<i class="${i + 1 < n ? 'hecho' : i + 1 === n ? 'aqui' : ''}"></i>`).join('')}</div>
   </div>`;
 });
-$('#nodos').innerHTML = NODOS.map((d, i) => `<li data-a="${(.8 + i * .28).toFixed(2)}"><span class="n">${i + 1}</span><b>${d.name}</b><span>${d.where}</span></li>`).join('');
-$('#puntos').innerHTML = NODOS.map((d, i) => `<span class="punto" style="--d:${(.8 + i * .28).toFixed(2)}s">${i + 1}</span>`).join('');
-$('#equipo').innerHTML = TEAM.map(p => `<li><b>${p.name}</b><span>${p.role}</span></li>`).join('');
+// tiras de LED del problema: 20 focos, encendidos en la proporción de la cifra
+document.querySelectorAll('.tira').forEach(t => {
+  t.querySelector('.leds').innerHTML = Array.from({ length: 20 }, (_, i) => `<i class="${i < +t.dataset.n ? 'si' : ''}" style="--i:${i}"></i>`).join('');
+});
+// base de datos: un registro por nodo; dashboard: miniatura con la forma de las gráficas reales
+$('#filas').innerHTML = NODOS.map((d, i) => `<li style="--i:${i}"><span class="n">${i + 1}</span><span><b>${d.name}</b><span>${d.event}</span></span></li>`).join('');
+const barras = (id, v) => { const m = Math.max(...v); $(id).innerHTML = v.map((x, i) => `<i style="--h:${(x / m * 100).toFixed(1)}%;--i:${i}"></i>`).join(''); };
+barras('#g-sos', [7, 7, 4, 3, 2, 1, 1]);
+barras('#g-bar', [11, 7, 4, 2, 2]);
+barras('#g-luz', [1, 1, 1, 1, 1, 1, 1, 1, .1, .18, .3, .38, .2, .28, .08, .22, .32, .92, .68, .88, 1, 1, 1, 1]);
+$('#puntos').innerHTML = NODOS.map((d, i) => `<span class="punto vidrio-c${d.side === 'izq' ? ' izq' : ''}" style="--d:${(.8 + i * .28).toFixed(2)}s"><span class="n">${i + 1}</span><span><b>${d.name}</b><span>${d.parts}</span></span></span>`).join('');
+$('#equipo').innerHTML = TEAM.map(p => `<li><b>${p.name}</b><span>${p.extra}, ${p.area}</span></li>`).join('') + `<li><b>${TEACHERS}</b><span>Profesoras</span></li>`;
 const puntos = [...document.querySelectorAll('.punto')];
 if (CONFIG.lookerUrl) $('#lookerBtn').href = CONFIG.lookerUrl; else $('#lookerBtn').removeAttribute('href');
 
@@ -106,7 +114,6 @@ function show(i, instant = false) {
   const part = s.dataset.part;
   if (!(part in inicio) && (part !== 'pitch' || i > 0)) inicio[part] = now();
   partes.forEach(p => p.classList.toggle('aqui', p.dataset.part === part));
-  deck.classList.toggle('sin-marca', s.dataset.id === 'portada' || s.dataset.id === 'gracias');
   $('#cuenta').textContent = String(i + 1).padStart(2, '0') + ' / ' + slides.length;
   $('#avance').style.transform = `scaleX(${((i + 1) / slides.length).toFixed(4)})`;
   if (location.hash !== '#' + (i + 1)) history.replaceState(null, '', location.pathname + location.search + '#' + (i + 1));

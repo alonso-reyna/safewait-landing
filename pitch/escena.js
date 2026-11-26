@@ -21,17 +21,18 @@ const SOS_0 = 2.0, SOS_EVERY = 2.8;   // primer pulso del SOS y cada cuánto se 
 const TRAVEL = 1.7;                   // lo que dura el viaje entre dos slides
 
 // valores que se mezclan al cambiar de slide
-const NUM = ['night', 'lamp', 'door', 'bars', 'oled', 'lift', 'explode', 'xray', 'hlSos', 'hlDoor', 'hlBars', 'sway', 'velo'];
-const BASE = { cam: 'lado', cam2: null, camK: 0, ang: 0, zoom: 1, night: 0, lamp: 0, door: 0, bars: 0, oled: 0, lift: 0, explode: 0, xray: 0, hlSos: 0, hlDoor: 0, hlBars: 0, sway: .05, velo: 0, busT: null, sosT: null, keysT: null };
+const NUM = ['night', 'lamp', 'door', 'bars', 'oled', 'lift', 'explode', 'xray', 'hlSos', 'hlDoor', 'hlBars', 'sway', 'velo', 'out'];
+const BASE = { cam: 'lado', cam2: null, camK: 0, ang: 0, zoom: 1, night: 0, lamp: 0, door: 0, bars: 0, oled: 0, lift: 0, explode: 0, xray: 0, hlSos: 0, hlDoor: 0, hlBars: 0, sway: .05, velo: 0, out: 0, busT: null, sosT: null, keysT: null };
 
 // una pose por slide (t = segundos desde que entró la slide)
 const POSES = {
   portada: () => ({}),
-  escena: () => ({ night: 1, ang: -.08, zoom: 1 }),
-  problema: () => ({ night: 1, ang: -.15, zoom: 1.05 }),
-  personas: () => ({ night: 1, ang: -.22, zoom: 1.09 }),
-  // la caseta enciende su luz y, un momento después, amanece
-  solucion: t => ({ lamp: sm(t, .5, 2), night: 1 - sm(t, 3.4, 5.6) }),
+  problema: () => ({ night: 1, ang: -.1 }),
+  // datos y personas: la maqueta se hace a un lado (out) y deja toda la pantalla
+  cifras: () => ({ night: 1, out: 1, ang: -.1 }),
+  personas: () => ({ night: 1, out: 1, ang: -.1 }),
+  // SafeWait se presenta: la maqueta regresa, enciende su luz y, un momento después, amanece
+  solucion: t => ({ lamp: sm(t, .7, 2.2), night: 1 - sm(t, 4.2, 6.4), ang: .22 * (1 - sm(t, 0, 5)) }),
   luz: t => ({ cam: 'light', lift: 1, night: sm(t, 1.7, 3.2), lamp: sm(t, 2.8, 4.4) }),
   sos: t => ({ cam: 'sos', lift: 1, hlSos: sm(t, .8, 1.8), sosT: t }),
   acceso: t => { const f = t - 1.6, p = ((f % 6.6) + 6.6) % 6.6; return { cam: 'door', hlDoor: sm(t, .6, 1.6), door: f > 0 ? hold(p, 0, 1.5, 3.3, 4.7) : 0 }; },
@@ -39,20 +40,24 @@ const POSES = {
   ruta: t => { const k = sm(t, 5.2, 6.5) - sm(t, 9.8, 11.1); return { cam: 'route', cam2: 'oled', camK: k, velo: k, lift: 1, busT: t - .9, oled: sm(t, 4.5, 4.9) }; },
   // la cámara se acerca al teclado, se teclea la clave, y de regreso suben los barrotes
   barrotes: t => { const k = hold(t, 1.0, 2.5, 5.3, 6.9); return { cam: 'bars', cam2: 'keypad', camK: k, velo: k, hlBars: sm(t, .6, 1.6), keysT: t - 2.9, bars: sm(t, 6.1, 8.3) }; },
-  datos: () => ({ ang: .22, zoom: .96 }),
+  registro: () => ({ out: 1, ang: .1 }),
   cierre: () => ({}),
   maqueta: () => ({ ang: -.12 }),
   distribucion: () => ({ cam: 'alto', lift: 1, sway: .03 }),
   oculto: () => ({ cam: 'abierto', explode: 1, sway: .04 }),
-  flujo: () => ({ ang: .2, zoom: .95 }),
+  flujo: () => ({ ang: .2 }),
   dashboard: () => ({ ang: .08 }),
-  gracias: () => ({}),
+  gracias: () => ({ cam: 'chico' }),
 };
 
 export function setupPitch(c) {
-  const { stage, view, bus, roofG, ROOF_UP, details, presses, sosFx, HLK, HI, doorMat, fsrPad, SOS_P, TOTAL, SCALE, el, BUS, GLOW, params } = c;
+  const { stage, view, bus, roofG, ROOF_UP, details, presses, sosFx, HLK, HI, doorMat, fsrPad, SOS_P, TOTAL, SCALE, el, BUS, GLOW, params, CON_BASE } = c;
   for (const id of ['label', 'end']) document.getElementById(id).style.display = 'none';
   const ARMADO = params.has('armado');           // la maqueta arranca ya armada
+  // el video cuelga el techo de un grupo aparte (roofG); la vista explotada guardó sus medidas en el espacio del padre original,
+  // así que se recalculan en el de roofG: si no, al explotar el techo sale volando
+  { const o0 = roofG.worldToLocal(V(0, 0, 0));
+    for (const o of stage.roof) { const x = o.userData.ex; if (!x) continue; x.v = roofG.worldToLocal(V(0, x.len, 0)).sub(o0); x.x0 = o.position.x; x.z0 = o.position.z; } }
 
   /* ---------- encuadres ---------- */
   let cams = null, camKey = '';
@@ -61,9 +66,11 @@ export function setupPitch(c) {
     // los encuadres del video van centrados: aquí la maqueta se recorre a la derecha para dejarle la izquierda al texto
     const right = (p, dx, k = 1) => ({ tgt: p.tgt, off: p.off.clone().multiplyScalar(k), vo: [p.vo[0] - dx * W, p.vo[1]] });
     return {
-      lado: c.fit({ cx: W * .7, cy: H * .5, w: W * .56, h: H * .72 }, W, H),
-      alto: c.fit({ cx: W * .7, cy: H * .52, w: W * .54, h: H * .74 }, W, H, .82),
-      abierto: c.fit({ cx: W * .7, cy: H * .6, w: W * .44, h: H * .5 }, W, H, .42),
+      // con base (madera) la maqueta es más alta: se encuadra más chica y más arriba para que quepa el pedestal
+      lado: CON_BASE ? c.fit({ cx: W * .7, cy: H * .39, w: W * .44, h: H * .54 }, W, H) : c.fit({ cx: W * .7, cy: H * .52, w: W * .56, h: H * .72 }, W, H),
+      chico: c.fit({ cx: W * .74, cy: H * .46, w: W * .46, h: H * .6 }, W, H),
+      alto: CON_BASE ? c.fit({ cx: W * .71, cy: H * .38, w: W * .38, h: H * .5 }, W, H, .8) : c.fit({ cx: W * .7, cy: H * .52, w: W * .54, h: H * .74 }, W, H, .82),
+      abierto: CON_BASE ? c.fit({ cx: W * .7, cy: H * .585, w: W * .27, h: H * .29 }, W, H, .42) : c.fit({ cx: W * .7, cy: H * .6, w: W * .44, h: H * .5 }, W, H, .42),
       light: right(L[1][2], .18, 1.22), sos: right(L[2][2], .19, 1.42), door: right(L[3][2], .2, 1.3), route: right(L[4][2], .18, 1.28),
       oled: right(L[5][2], .2, 1.1), keypad: right(L[7][2], .2, 1.2), bars: right(L[8][2], .2, 1.3),
     };
@@ -137,7 +144,7 @@ export function setupPitch(c) {
     s.night = .92 * P.night; s.dark = P.night; s.lamp = P.lamp;
     s.door = Math.max(P.door, tA < 5 ? 1 - sm(tA, 3.0, 4.1) : 0);
     s.bars = P.bars; s.oled = P.oled; s.explode = P.explode; s.xray = P.xray;
-    s.roof = 0; s.sos = 0; s.busX = null; s.hl = null;
+    s.roof = 0; s.sos = 0; s.busX = null; s.hl = null; s.plinth = !!CON_BASE;
     const hl = { sos: P.hlSos, door: P.hlDoor, bars: P.hlBars };
     for (const k in HLK) { const a = (hl[k] || 0) * (k === 'door' ? .45 : .8); for (const h of HLK[k]) h.mat.color.copy(h.base).lerp(HI, a); }
     doorMat.emissiveIntensity = P.lamp * P.night * .5;
@@ -173,7 +180,7 @@ export function setupPitch(c) {
     const cam = view.camera, a = fijo ? 0 : P.sway * Math.sin(now * .42);
     sw.copy(P.pos).sub(P.tgt).applyAxisAngle(UP, a).add(P.tgt);
     cam.aspect = W / H;
-    cam.setViewOffset(W, H, P.vo[0], P.vo[1], W, H);
+    cam.setViewOffset(W, H, P.vo[0] - P.out * W * .66, P.vo[1], W, H);   // out: la maqueta sale de cuadro por la derecha
     cam.position.copy(sw); cam.lookAt(P.tgt); cam.updateMatrixWorld();
     stage.render(now, 0);
 

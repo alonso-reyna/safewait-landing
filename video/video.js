@@ -44,7 +44,9 @@ await Promise.all([
 const stage = new Stage($('#gl'), {});
 stage.asm.dur = 3.25;
 const view = stage.addView($('#view'));
-view.state.plinth = false;
+// en la presentación, la maqueta de madera se muestra completa, con su base (como la maqueta física)
+const CON_BASE = params.has('pitch') && MADERA;
+view.state.plinth = CON_BASE;
 view.state.real = MADERA;
 { // maqueta azul: se cambian los colores del juego de materiales "blanco" de la escena
   const W = stage.M.white;
@@ -110,13 +112,13 @@ for (const k in stage.M.white) if (k.startsWith('hl_')) stage.M.real[k] = stage.
 const doorMat = (MADERA ? stage.M.real : stage.M.white).hl_door_door, barMat = (MADERA ? stage.M.real : stage.M.white).hl_bars_bars;
 // barrotes: siempre a la vista, pero solo lo que asoma sobre la calle (abajo no hay pedestal); en reposo se ven las puntas en sus hoyos
 const overTop = new THREE.Plane(V(0, 1, 0), -(CAD.baseTop + 0.02));
-barMat.clippingPlanes = [overTop]; barMat.clipShadows = true;
-stage.bars.forEach(o => {
+if (!CON_BASE) { barMat.clippingPlanes = [overTop]; barMat.clipShadows = true; }
+if (!CON_BASE) stage.bars.forEach(o => {
   if (o.userData.edges) o.userData.edges.visible = false;
   const c = barMat.clone(); c.clippingPlanes = [o.userData.clip, overTop]; c.clipShadows = true;
   o.userData.clipMats = { [barMat.uuid]: c };
 });
-stage.plinth = stage.plinth.filter(o => !stage.bars.includes(o));
+if (!CON_BASE) stage.plinth = stage.plinth.filter(o => !stage.bars.includes(o));
 // aristas en azul claro (la escena las repinta en gris en cada cuadro, así que se corrigen justo antes de dibujar)
 const edgeObjs = stage.meshes.map(m => m.userData.edges).filter(Boolean);
 stage.scene.onBeforeRender = () => {
@@ -350,7 +352,7 @@ window.seek = async t => { frame(t); await raf(); await raf(); };
 if (params.has('pitch')) {
   // presentación (/pitch/): la página de afuera decide qué se dibuja en cada slide
   const { setupPitch } = await import('../pitch/escena.js');
-  setupPitch({ stage, view, bus, roofG, ROOF_UP, details, presses, sosFx, HLK, HI, doorMat, fsrPad, SOS_P, TOTAL, SCALE, el, buildCam, fit, roadY, BUS: { stop: BUS_STOP, a: BUS_A, b: BUS_B, axf: AXF, axr: AXR }, GLOW, params });
+  setupPitch({ stage, view, bus, roofG, ROOF_UP, details, presses, sosFx, HLK, HI, doorMat, fsrPad, SOS_P, TOTAL, SCALE, el, buildCam, fit, roadY, CON_BASE, BUS: { stop: BUS_STOP, a: BUS_A, b: BUS_B, axf: AXF, axr: AXR }, GLOW, params });
 } else if (params.has('poster')) {
   const { setupPoster } = await import('./poster.js');
   await setupPoster({ stage, view, frame, bus, roofG, ROOF_UP, roofSet, el, params, MADERA, TONE });
