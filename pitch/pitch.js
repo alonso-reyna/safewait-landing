@@ -1,7 +1,8 @@
 // Presentación final de SafeWait (Etapa 5): pitch de ventas, maqueta y dashboard en un solo deck.
 // Las slides viven en index.html; la maqueta 3D corre en dos iframes de /video/?pitch (azul y madera) y aquí se decide
 // qué slide va, se mueve el tiempo de ambas escenas y se funde una con otra.
-//   →, espacio, clic: siguiente    ←: anterior    F: pantalla completa    T: cronómetro de la parte    R: reinicia el cronómetro
+//   →, espacio, clic: siguiente    ←: anterior    F: pantalla completa    T: cronómetro de la parte    R: volver a empezar
+//   En la portada la maqueta espera separada por capas: el primer "siguiente" la arma y el segundo pasa a la slide 2.
 //   /pitch/#7 abre en la slide 7   |   /pitch/?fijo#7 la deja quieta en su cuadro final (así se saca el PDF: pitch/exportar.mjs)
 import '@fontsource-variable/inter';
 import '@fontsource-variable/inter-tight';
@@ -114,6 +115,7 @@ function show(i, instant = false) {
   const s = slides[i], prev = slides[idx];
   if (prev !== s) { prev.classList.remove('on'); prev.classList.add('out'); setTimeout(() => prev.classList.remove('out'), 450); }
   idx = i;
+  if (i > 0) pendiente = false;
   s.classList.remove('out'); s.classList.add('on');
   lookTo = s.dataset.look === 'madera' ? 1 : 0;
   if (instant) lookK = lookTo;
@@ -127,6 +129,20 @@ function show(i, instant = false) {
   $('#cuenta').textContent = String(i + 1).padStart(2, '0') + ' / ' + slides.length;
   $('#avance').style.transform = `scaleX(${((i + 1) / slides.length).toFixed(4)})`;
   if (location.hash !== '#' + (i + 1)) history.replaceState(null, '', location.pathname + location.search + '#' + (i + 1));
+}
+
+// siguiente: en la portada, la primera vez arma la maqueta (la entrada de la landing) en vez de cambiar de slide
+let pendiente = idx === 0 && !FIJO;
+function avanza() {
+  const a = api(fA);
+  if (idx === 0 && pendiente && a) { pendiente = false; a.entrada(now()); } else show(idx + 1);
+}
+// R: todo como al abrir. Primera slide, la maqueta esperando otra vez y los cronómetros en cero
+function reset() {
+  for (const k in inicio) delete inicio[k];
+  pendiente = !FIJO;
+  const a = api(fA); if (a) a.reset();
+  show(0, true);
 }
 
 // cronómetro de la parte en curso (T lo muestra): arranca al entrar a la parte; el del pitch, al dejar la portada
@@ -143,18 +159,18 @@ function crono() {
 addEventListener('keydown', e => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const k = e.key;
-  if (k === 'ArrowRight' || k === 'ArrowDown' || k === 'PageDown' || k === ' ' || k === 'Enter') { e.preventDefault(); show(idx + 1); }
+  if (k === 'ArrowRight' || k === 'ArrowDown' || k === 'PageDown' || k === ' ' || k === 'Enter') { e.preventDefault(); avanza(); }
   else if (k === 'ArrowLeft' || k === 'ArrowUp' || k === 'PageUp' || k === 'Backspace') { e.preventDefault(); show(idx - 1); }
   else if (k === 'Home') show(0);
   else if (k === 'End') show(slides.length - 1);
   else if (k === 'f' || k === 'F') { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => null); }
   else if (k === 't' || k === 'T') cronoEl.hidden = !cronoEl.hidden;
-  else if (k === 'r' || k === 'R') inicio[slides[idx].dataset.part] = now();
+  else if (k === 'r' || k === 'R') reset();
 });
 deck.addEventListener('click', e => {
   if (e.target.closest('a')) return;
   const r = deck.getBoundingClientRect();
-  show(idx + ((e.clientX - r.left) / r.width < .12 ? -1 : 1));
+  if ((e.clientX - r.left) / r.width < .12) show(idx - 1); else avanza();
 });
 addEventListener('hashchange', () => { const n = parseInt(location.hash.slice(1), 10); if (n && n - 1 !== idx) show(n - 1); });
 

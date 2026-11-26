@@ -160,9 +160,10 @@ export const POSES = {
   // tilt inclina el cuerpo entero (negativo = hacia atrás)
   libre(p, s) {
     p.userData.inner.rotation.x = s.tilt || 0;
+    // el tronco primero: en este esqueleto las piernas cuelgan de Spine, y si se girara después se las llevaría
+    if (s.spine) turn(p, 'Spine', X, s.spine);
     leg(p, 'L', s.thL, s.caL, s.foL); leg(p, 'R', s.thR, s.caR, s.foR);
     arm(p, 'L', s.upL, s.frL, s.haL); arm(p, 'R', s.upR, s.frR, s.haR);
-    if (s.spine) turn(p, 'Spine', X, s.spine);
     if (s.neck) turn(p, 'Neck', X, s.neck);
     if (s.headX) turn(p, 'Head', X, s.headX);
     if (s.headY) turn(p, 'Head', Y, s.headY);

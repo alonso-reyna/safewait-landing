@@ -58,7 +58,10 @@ export function setupPitch(c) {
   const { stage, view, bus, roofG, ROOF_UP, details, presses, sosFx, HLK, HI, doorMat, fsrPad, SOS_P, TOTAL, SCALE, el, BUS, GLOW, params, CON_BASE } = c;
   for (const id of ['label', 'end']) document.getElementById(id).style.display = 'none';
   el.gl = document.getElementById('gl');
-  const ARMADO = params.has('armado');           // la maqueta arranca ya armada
+  // entrada de la portada, la "explotada" de la landing: la maqueta espera separada por capas y, cuando pitch.js llama
+  // entrada(), se junta frenando. ent: null = esperando; si no, el segundo en que arrancó (con ?armado ya está junta)
+  const EX_0 = .42, EX_DUR = 2.5, YA = -1e9;
+  let ent = params.has('armado') ? YA : null;
   // el video cuelga el techo de un grupo aparte (roofG); la vista explotada guardó sus medidas en el espacio del padre original,
   // así que se recalculan en el de roofG: si no, al explotar el techo sale volando
   { const o0 = roofG.worldToLocal(V(0, 0, 0));
@@ -95,7 +98,7 @@ export function setupPitch(c) {
   }
 
   /* ---------- de slide a slide ---------- */
-  let cur = 'portada', t0 = 0, dur = 0, from = null, last = null, asm0 = null, W0 = 1920, H0 = 1080;
+  let cur = 'portada', t0 = 0, dur = 0, from = null, last = null, W0 = 1920, H0 = 1080;
 
   /* ---------- la slide de la situación: la estudiante (chica.js) en la parada de hoy (parada.js) ---------- */
   let girl = null, fea = null, feoOn = false, ocultos = null;
@@ -161,6 +164,7 @@ export function setupPitch(c) {
       from.sosStop = n < 0 ? -1 : n;
     }
     cur = id; t0 = now; dur = from ? TRAVEL : 0;
+    if (id !== 'portada' && ent == null) ent = YA;   // si se sale de la portada sin haberla armado, ya no se queda esperando
   }
 
   /* ---------- un cuadro ---------- */
@@ -170,21 +174,21 @@ export function setupPitch(c) {
     const W = document.documentElement.clientWidth, H = window.innerHeight;
     if (!W || !H) return null;
     if (camKey !== W + 'x' + H) { camKey = W + 'x' + H; W0 = W; H0 = H; stage.resize(); cams = buildCams(W, H); from = null; }
-    if (asm0 == null) asm0 = now;
     const P = last = compute(now);
 
-    // armado: una sola vez, al abrir la presentación
-    const tA = ARMADO || fijo ? 99 : now - asm0;
-    const asmT = clamp(tA - .4, 0, TOTAL);
+    // todas las piezas en su lugar; lo único que se anima al abrir es la separación de la entrada
     stage.pieces.forEach(p => { p.t0 = p.t0o; });
-    stage.asm.t = asmT; stage.asm.done = false;
-    const lift = Math.max(tA < 5 ? 1 - sm(tA, 2.7, 4.1) : 0, P.lift);
-    roofG.position.y = ROOF_UP * lift; roofG.visible = lift < .998;
-    details.update(asmT, SCALE);
+    stage.asm.t = TOTAL; stage.asm.done = false;
+    const exK = fijo ? 0 : ent == null ? 1 : Math.pow(1 - clamp((now - ent) / EX_DUR), 2.4);
+    stage.asm.ex = EX_0 * exK;
+    // separada ocupa más alto: la cámara la ve de un poco más lejos y más abajo, y se acerca conforme se junta
+    if (exK > 0) { P.pos.sub(P.tgt).multiplyScalar(1 + .24 * exK).add(P.tgt); P.vo[1] -= .07 * H * exK; }
+    roofG.position.y = ROOF_UP * P.lift; roofG.visible = P.lift < .998;
+    details.update(TOTAL, SCALE);
 
     const s = view.state;
     s.night = Math.min(1, .92 * P.night); s.dark = Math.min(1, P.night); s.lamp = P.lamp;
-    s.door = Math.max(P.door, tA < 5 ? 1 - sm(tA, 3.0, 4.1) : 0);
+    s.door = P.door;
     s.bars = P.bars; s.oled = P.oled; s.explode = P.explode; s.xray = P.xray;
     s.roof = 0; s.sos = 0; s.busX = null; s.hl = null; s.plinth = !!CON_BASE;
     const hl = { sos: P.hlSos, door: P.hlDoor, bars: P.hlBars };
@@ -277,5 +281,5 @@ export function setupPitch(c) {
     return keys.map(k => { const p = tmp.copy(ANCHORS[k]).project(view.camera); return [p.x * .5 + .5, -p.y * .5 + .5]; });
   }
 
-  window.pitch = { go, render, project, listo };
+  window.pitch = { go, render, project, listo, entrada: now => { ent = now; }, reset: () => { ent = null; } };
 }

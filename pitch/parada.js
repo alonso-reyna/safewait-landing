@@ -75,12 +75,27 @@ export function paradaFea({ y, calle, banca = [-14.5, -10.3] }) {
       for (let i = 8; i >= 0; i--) c.lineTo(x + ww * i / 8, yy + hh * rnd(.62, 1)); c.closePath(); c.fill();
       c.fillStyle = 'rgba(60,62,66,.5)'; for (let i = 0; i < 5; i++) c.fillRect(x + 12, yy + 22 + i * 18, ww * rnd(.4, .8), 6);
     }
-    // rayones de aerosol: trazos gruesos sin letras legibles
+    // rayones de aerosol sin letras legibles (el segundo se calcula pero no se pinta: en su lugar va el "IoT")
     c.lineCap = c.lineJoin = 'round';
-    for (const [x0, col, lw] of [[560, 'rgba(58,120,132,.8)', 13], [760, 'rgba(150,72,112,.78)', 11], [930, 'rgba(206,206,200,.7)', 9], [60, 'rgba(32,34,38,.8)', 8], [1380, 'rgba(58,120,132,.7)', 10]]) {
-      c.strokeStyle = col; c.lineWidth = lw; c.beginPath(); let x = x0, yy = rnd(110, 170); c.moveTo(x, yy);
-      for (let i = 0; i < 7; i++) { const nx = x + rnd(14, 34), ny = rnd(50, 200); c.bezierCurveTo(x + rnd(-20, 30), ny + rnd(-60, 60), nx + rnd(-30, 20), yy + rnd(-60, 60), nx, ny); x = nx; yy = ny; } c.stroke();
-    }
+    [[560, 'rgba(58,120,132,.8)', 13], [760, null, 11], [930, 'rgba(206,206,200,.7)', 9], [60, 'rgba(32,34,38,.8)', 8], [1380, 'rgba(58,120,132,.7)', 10]].forEach(([x0, col, lw]) => {
+      c.strokeStyle = col || 'transparent'; c.lineWidth = lw; c.beginPath(); let x = x0, yy = rnd(110, 170); c.moveTo(x, yy);
+      for (let i = 0; i < 7; i++) { const nx = x + rnd(14, 34), ny = rnd(50, 200); c.bezierCurveTo(x + rnd(-20, 30), ny + rnd(-60, 60), nx + rnd(-30, 20), yy + rnd(-60, 60), nx, ny); x = nx; yy = ny; }
+      if (col) c.stroke();
+    });
+    // "IoT" pintado con aerosol, entre la banca y el farol: trazo grueso con el borde difuso, rocío y escurridos
+    const letras = [
+      [[786, 40], [788, 78], [785, 120]], [[772, 42], [801, 37]], [[771, 121], [802, 117]],                                       // I
+      [[838, 76], [816, 80], [814, 112], [836, 118], [860, 116], [862, 82], [842, 74], [834, 78]],                                 // o
+      [[866, 44], [894, 36], [922, 39]], [[895, 38], [892, 80], [894, 122]],                                                       // T
+    ];
+    const trazo = pts => { c.beginPath(); c.moveTo(...pts[0]); if (pts.length === 2) c.lineTo(...pts[1]); else { for (let i = 1; i < pts.length - 1; i++) { const m = i < pts.length - 2 ? [(pts[i][0] + pts[i + 1][0]) / 2, (pts[i][1] + pts[i + 1][1]) / 2] : pts[i + 1]; c.quadraticCurveTo(...pts[i], ...m); } } c.stroke(); };
+    c.save(); c.translate(834, 80); c.rotate(-.045); c.translate(-846, -80);
+    c.shadowColor = 'rgba(214,66,136,.8)'; c.shadowBlur = 5; c.strokeStyle = 'rgba(214,66,136,.9)'; c.lineWidth = 12; letras.forEach(trazo);
+    c.shadowBlur = 0; c.strokeStyle = 'rgba(236,112,168,.3)'; c.lineWidth = 5; letras.forEach(trazo);
+    let sd = 7; const r2 = () => { sd = (sd * 16807) % 2147483647; return sd / 2147483647; };   // azar propio: no mueve el de la escena
+    c.fillStyle = 'rgba(214,66,136,.5)'; for (let i = 0; i < 260; i++) { const pts = letras[Math.floor(r2() * letras.length)], q = pts[Math.floor(r2() * pts.length)], a = r2() * 6.28, d = 6 + r2() * 12; c.fillRect(q[0] + Math.cos(a) * d, q[1] + Math.sin(a) * d, 1.6, 1.6); }
+    for (const [x, y0, l] of [[786, 122, 30], [893, 124, 22], [838, 119, 14], [802, 38, 12]]) { const gr = c.createLinearGradient(0, y0, 0, y0 + l); gr.addColorStop(0, 'rgba(214,66,136,.9)'); gr.addColorStop(1, 'rgba(214,66,136,.25)'); c.strokeStyle = gr; c.lineWidth = 2.6; c.beginPath(); c.moveTo(x, y0); c.lineTo(x + .6, y0 + l); c.stroke(); }
+    c.restore();
   });
   add(new THREE.PlaneGeometry(TRAMO, ALTO), mat(0xffffff, { map: muro }), banca[0] + 2, y + ALTO / 2, zB);
   const liso = tex(256, 240, (c, w, h) => block(c, w, h, 16), (ANCHO - TRAMO) / 2 / 16, 1);
@@ -90,26 +105,35 @@ export function paradaFea({ y, calle, banca = [-14.5, -10.3] }) {
   /* ---------- banca: herrajes de fierro y tablas; el asiento son dos mitades por tabla, para poder romperlo ---------- */
   const b = new THREE.Group(); b.position.set(banca[0], y, banca[1]); b.rotation.y = .03; g.add(b);
   const fierro = mat(0x3d3733, { roughness: .8, metalness: .3 }), tabla = () => mat(new THREE.Color(0x7c7566).offsetHSL(rnd(-.02, .02), rnd(-.05, .03), rnd(-.06, .05)));
-  const LARGO = 13, MED = LARGO / 2 - .35, ASIENTO = 3.05;
+  // cada tabla del asiento son tres tramos: los de las orillas cuelgan de su herraje y el de en medio se va al piso
+  const LARGO = 13, MED = LARGO / 2 - .35, ASIENTO = 2.7, ORILLA = 4.3;
   for (const x of [-MED, MED]) {
     add(box(.42, ASIENTO - .2, .42), fierro, x, (ASIENTO - .2) / 2, 1.45, 0, 0, 0, b);        // pata delantera
     add(box(.42, 6.9, .42), fierro, x, 3.4, -1.55, .15, 0, 0, b);                               // pata trasera, que sube como respaldo
     add(box(.42, .42, 3.3), fierro, x, ASIENTO - .32, -.05, 0, 0, 0, b);                        // travesaño del asiento
-    add(box(.5, .3, 3.5), fierro, x, 4.75, .1, -.05, 0, 0, b); add(box(.36, 1.75, .36), fierro, x, 3.85, 1.5, 0, 0, 0, b);   // descansabrazos
+    add(box(.5, .3, 3.5), fierro, x, 4.75, .1, -.05, 0, 0, b); add(box(.36, 4.6 - ASIENTO, .36), fierro, x, (4.6 + ASIENTO) / 2, 1.5, 0, 0, 0, b);   // descansabrazos
     add(box(.8, .12, 1), fierro, x, .06, 1.45, 0, 0, 0, b); add(box(.8, .12, 1), fierro, x, .06, -1.95, 0, 0, 0, b);         // zapatas
   }
-  const mitades = [];
+  // dónde queda tirado el tramo de en medio de cada tabla [x, z, giro]: dos detrás de ella, uno bajo sus rodillas y otro a un lado
+  const TIRADO = [[.4, -2.6, .25], [-.3, -1.75, -.1], [.1, 1.25, .12], [-3.0, 2.6, .9]];
+  const mitades = [], medios = [];
   [-1.12, -.38, .36, 1.1].forEach((z, i) => {
-    for (const s of [-1, 1]) { // cada mitad cuelga de su herraje y, al romperse, cae hacia el centro
+    for (const s of [-1, 1]) {
       const piv = new THREE.Group(); piv.position.set(s * MED, ASIENTO, z); b.add(piv);
-      add(box(MED - .04, .3, .62), tabla(), -s * (MED - .04) / 2, 0, 0, 0, 0, 0, piv);
-      mitades.push({ piv, s, ang: Math.asin((ASIENTO - .28) / MED) * rnd(.86, 1), giro: rnd(-.12, .12), tarde: i * .12 + rnd(0, .1) });
+      add(box(ORILLA, .3, .62), tabla(), -s * ORILLA / 2, 0, 0, 0, 0, 0, piv);
+      mitades.push({ piv, s, ang: Math.asin((ASIENTO - .28) / ORILLA) * rnd(.86, 1), giro: rnd(-.12, .12), tarde: i * .05 + rnd(0, .08) });
     }
+    medios.push({ o: add(box(2 * (MED - ORILLA) - .03, .3, .62), tabla(), 0, ASIENTO, z, 0, 0, 0, b), z, fin: TIRADO[i], vuelta: rnd(-.5, .5) });
   });
   // respaldo: una tabla entera, falta la de en medio y la de abajo cuelga de un lado
   add(box(LARGO, .3, .7), tabla(), 0, 6.35, -2.0, .15, 0, 0, b);
   add(box(LARGO - .6, .3, .7), tabla(), -.5, 4.25, -1.9, .15, 0, -.13, b);
-  const quiebra = k => { for (const m of mitades) { const e = clamp((k - m.tarde) / (1 - m.tarde)), q = e * e; m.piv.rotation.z = m.s * m.ang * Math.min(1, q * 1.06); m.piv.rotation.x = m.giro * q; } };
+  const quiebra = k => {
+    for (const m of mitades) { const e = clamp((k - m.tarde) / (1 - m.tarde)), q = e * e; m.piv.rotation.z = m.s * m.ang * Math.min(1, q * 1.06); m.piv.rotation.x = m.giro * q; }
+    // los tramos de en medio caen con ella (llegan al piso un poco antes) y quedan tirados
+    const e = Math.pow(clamp(k / .8), 1.7);
+    for (const m of medios) { m.o.position.set(m.fin[0] * e, ASIENTO + (.16 - ASIENTO) * e, m.z + (m.fin[1] - m.z) * e); m.o.rotation.set(m.vuelta * Math.sin(Math.PI * e), m.fin[2] * e, 0); }
+  };
 
   /* ---------- letrero de parada: lámina azul con el camión, rayada y oxidada ---------- */
   const p = new THREE.Group(); p.position.set(banca[0] - 9, y, -8.6); p.rotation.set(.02, .08, -.07); g.add(p);
@@ -153,7 +177,7 @@ export function paradaFea({ y, calle, banca = [-14.5, -10.3] }) {
   const lata = mat(0x9a4a44, { roughness: .45, metalness: .55 }), pet = new THREE.MeshStandardMaterial({ color: 0xbfd6cf, roughness: .15, transparent: true, opacity: .55 }), papel = mat(0xcfd0cc), carton = mat(0x8f7655);
   const suelta = (x, z) => [x, y, z];
   for (const [x, z, r] of [[bx + 4.4, bz + 2.6, .4], [banca[0] - 4.2, -6.2, 1.7], [banca[0] + 4.6, -5.3, 2.6]]) { const o = add(cyl(.34, .34, 1.15, 10), lata, ...suelta(x, z), Math.PI / 2, r, 0); o.position.y = y + .34; }
-  { const o = add(cyl(.34, .34, 1.15, 10), mat(0x4c6f8a, { roughness: .45, metalness: .55 }), banca[0] + 1.8, y + .2, -7.9, Math.PI / 2, .9, 0); o.scale.z = .5; }
+  { const o = add(cyl(.34, .34, 1.15, 10), mat(0x4c6f8a, { roughness: .45, metalness: .55 }), banca[0] + 3.7, y + .2, -6.5, Math.PI / 2, .9, 0); o.scale.z = .5; }
   for (const [x, z, r] of [[banca[0] - 6.5, -11.6, .6], [bx + 1.2, bz + 3.4, 2.1]]) { add(cyl(.3, .3, 1.5, 10), pet, x, y + .3, z, Math.PI / 2, r, 0); add(cyl(.12, .28, .5, 8), pet, x + Math.sin(r) * .98, y + .3, z + Math.cos(r) * .98, Math.PI / 2, r, 0); }
   for (const [x, z, r, w] of [[banca[0] - 2.5, -7.0, .5, 1.5], [banca[0] + 6.5, -8.4, 2.2, 1.3], [banca[0] - 8.8, -5.6, 1.2, 1.6], [bx + 3.6, bz + 4.6, .2, 1.2], [banca[0] + 2.6, -4.6, 2.9, 1.4]]) add(new THREE.PlaneGeometry(w, w * 1.35), papel, x, y + .03 + rnd(0, .02), z, -Math.PI / 2 + rnd(-.12, .12), 0, r).material.side = THREE.DoubleSide;
   add(box(3.2, .22, 3), carton, banca[0] - 6.8, y + .12, -12.6, 0, .4, .03); add(box(3.2, .16, 1.4), carton, banca[0] - 6.3, y + .32, -11.5, .5, .4, 0);

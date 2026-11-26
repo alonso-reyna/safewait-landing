@@ -20,13 +20,17 @@ export const G = {
 const par = (th, ca, fo, up, fr, ha, o = {}) => ({ thL: th, caL: ca, foL: fo, thR: th, caR: ca, foR: fo, upL: up, frL: fr, haL: ha, upR: up, frR: fr, haR: ha, spine: 0, tilt: 0, neck: 0, headX: 0, headY: 0, ...o });
 const POSE = {
   pie: par([.04, -1, 0], [0, -1, -.05], [.1, -.45, 1], [.16, -1, .04], [.1, -1, .22], [.05, -1, .25]),
-  sentada: par([.14, -.06, 1], [0, -1, .08], [.1, -.5, 1], [.14, -1, .28], [-.12, -.42, 1], [-.1, -.3, 1], { spine: -.06 }),
-  // en el piso: cayó sentada entre las tablas, rodillas arriba, el cuerpo echado hacia atrás y las manos apoyadas atrás
-  caida: par([.2, .5, 1], [.05, -1, .28], [.1, -.2, 1], [.5, -.75, -.5], [.22, -1, -.25], [.2, -.5, -.8],
-    { thR: [.12, .22, 1], caR: [0, -1, .5], upR: [.42, -.6, -.62], spine: .22, tilt: -.44, neck: .2 }),
+  sentada: par([.14, -.16, 1], [0, -1, .08], [.1, -.5, 1], [.14, -1, .28], [-.12, -.42, 1], [-.1, -.3, 1], { spine: -.06 }),
+  // en el piso: cayó sentada donde estaba el asiento, entre las tablas; rodillas arriba, el cuerpo un poco hacia adelante
+  // (detrás tiene el respaldo) y las manos apoyadas en el piso, a los lados
+  caida: par([.2, .72, .7], [.02, -1, .2], [.1, -.25, 1], [.14, -1, -.05], [.16, -1, -.02], [.1, -1, .35],
+    { thR: [.16, .5, .87], caR: [0, -.75, .66], upR: [.2, -1, .02], spine: .26, neck: .08 }),
   // a medio levantarse: en cuclillas, el cuerpo hacia adelante
   cuclillas: par([.12, -.28, 1], [0, -1, -.5], [.1, -.3, 1], [.2, -.9, .42], [0, -.6, .9], [0, -.5, 1], { spine: .55, neck: -.2 }),
 };
+// mientras cae: los brazos se le van hacia arriba
+const SUSTO = { upL: [.6, .1, .6], frL: [.45, .8, .5], haL: [.3, .9, .3], upR: [.6, .1, .6], frR: [.45, .8, .5], haR: [.3, .9, .3] };
+const AVANZA = 1.0;
 const CELULAR = { upR: [.12, -1, .22], frR: [-.5, .55, .85], haR: [-.5, .7, .4] };
 
 function mix(a, b, k) {
@@ -55,13 +59,16 @@ export function girlAt(t) {
   const w = t - (G.cel + 4.5), n = Math.floor(w / 8.5), giro = w > 0 ? (n % 2 ? -.6 : .75) * hold(w - n * 8.5, 0, 1.1, 3.0, 4.2) : 0;
 
   let s = camina(Math.abs(x - G.x0) / G.ciclo * Math.PI * 2, paso);
-  s = mix(s, POSE.sentada, kS); s = mix(s, POSE.caida, kF); s = mix(s, POSE.cuclillas, kC); s = mix(s, POSE.pie, kP);
+  const susto = Math.sin(Math.PI * ramp(t, G.quiebre, G.quiebre + .85)), golpe = hold(t, G.quiebre + .38, G.quiebre + .5, G.quiebre + .6, G.quiebre + 1.1);
+  s = mix(s, POSE.sentada, kS); s = mix(s, POSE.caida, kF); s = mix(s, SUSTO, susto * .85); s.spine += .14 * golpe;
+  s = mix(s, POSE.cuclillas, kC); s = mix(s, POSE.pie, kP);
   s = mix(s, CELULAR, cel);
   const mira = 1 - Math.min(1, Math.abs(giro) * 2);
   s.neck += .3 * cel * mira; s.headX += .25 * cel * mira + .3 * kF * (1 - kC); s.headY = giro;
 
   return {
-    x, z: G.zCamina + (G.zBanca - G.zCamina) * kS + (G.zFinal - G.zBanca) * kP,
+    // al levantarse se echa hacia adelante sobre sus pies (AVANZA) y luego da el paso que falta
+    x, z: G.zCamina + (G.zBanca - G.zCamina) * kS + AVANZA * kC + (G.zFinal - G.zBanca - AVANZA) * kP,
     rot: -Math.PI / 2 + (Math.PI / 2 + .05) * sm(t, G.t1 - .35, G.t1 + .8) + .22 * kP,
     spec: s, cel,
     quiebre: ramp(t, G.quiebre, G.quiebre + .5),   // cuánto se ha roto el asiento (0 a 1)
