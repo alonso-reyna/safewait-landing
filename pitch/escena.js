@@ -2,7 +2,9 @@
 // La página de afuera (pitch.js) manda: go(id, now) cambia de slide y render(now) dibuja un cuadro.
 // Cada slide es una "pose": valores de la maqueta y un encuadre, en función del tiempo que lleva la slide (tau).
 import * as THREE from 'three';
-import { ANCHORS, CAD, COLOR } from '../src/scene.js';
+import { ANCHORS, CAD } from '../src/scene.js';
+import { paradaFea, farol } from './parada.js';
+import { G, girlAt } from './chica.js';
 import { KEYPAD_TOP } from '../src/detail.js';
 import { CODE } from '../video/guion.js';
 
@@ -75,7 +77,7 @@ export function setupPitch(c) {
       alto: CON_BASE ? c.fit({ cx: W * .71, cy: H * .38, w: W * .38, h: H * .5 }, W, H, .8) : c.fit({ cx: W * .7, cy: H * .52, w: W * .54, h: H * .74 }, W, H, .82),
       abierto: CON_BASE ? c.fit({ cx: W * .7, cy: H * .585, w: W * .27, h: H * .29 }, W, H, .42) : c.fit({ cx: W * .7, cy: H * .6, w: W * .44, h: H * .5 }, W, H, .42),
       light: right(L[1][2], .18, 1.22), sos: right(L[2][2], .19, 1.42), door: right(L[3][2], .2, 1.3), route: right(L[4][2], .18, 1.28),
-      espera: { tgt: V(-6, 23.5, -9), off: V(14, 6, 64), vo: [-.2 * W, 0] },
+      espera: { tgt: V(G.x1 + 1, 22.2, -9), off: V(11, 4.5, 50), vo: [-.25 * W, 0] },
       oled: right(L[5][2], .2, 1.1), keypad: right(L[7][2], .2, 1.2), bars: right(L[8][2], .2, 1.3),
     };
   }
@@ -95,71 +97,13 @@ export function setupPitch(c) {
   /* ---------- de slide a slide ---------- */
   let cur = 'portada', t0 = 0, dur = 0, from = null, last = null, asm0 = null, W0 = 1920, H0 = 1080;
 
-  /* ---------- la estudiante de la slide de la situación ---------- */
-  // llega caminando por la banqueta desde la derecha, se detiene frente a la puerta, voltea hacia la calle y saca el celular
-  const G = { x0: 30, x1: -6.5, z: -6.4, t0: 1.0, t1: 7.2, ciclo: 7.4 };
-  function girlAt(t) {
-    const u = ramp(t, G.t0, G.t1), k = (u + smooth(u)) / 2, x = G.x0 + (G.x1 - G.x0) * k;
-    const cel = sm(t, G.t1 + .8, G.t1 + 2.0);
-    // cada tanto levanta la vista y voltea a ver si viene el camión, un lado y luego el otro
-    const w = t - (G.t1 + 5.5), n = Math.floor(w / 8.5), giro = w > 0 ? (n % 2 ? -.6 : .75) * hold(w - n * 8.5, 0, 1.1, 3.0, 4.2) : 0;
-    return {
-      x, z: G.z, rot: -Math.PI / 2 + (Math.PI / 2 + .12) * sm(t, G.t1 - .35, G.t1 + .9),
-      fase: Math.abs(x - G.x0) / G.ciclo * Math.PI * 2, paso: sm(t, G.t0, G.t0 + .5) * (1 - sm(t, G.t1 - .7, G.t1)), cel, giro,
-    };
-  }
+  /* ---------- la slide de la situación: la estudiante (chica.js) en la parada de hoy (parada.js) ---------- */
   let girl = null, fea = null, feoOn = false, ocultos = null;
   const caseta = [];
   { // la caseta se esconde justo al dibujar y se restaura al terminar, para no pelear con lo que la escena decide en cada cuadro
     const antes = stage.scene.onBeforeRender, despues = stage.scene.onAfterRender;
     stage.scene.onBeforeRender = function () { antes.apply(this, arguments); if (feoOn) { for (const o of caseta) { o.userData.vis = o.visible; o.visible = false; } ocultos = caseta; } };
     stage.scene.onAfterRender = function () { if (despues) despues.apply(this, arguments); if (ocultos) { for (const o of ocultos) o.visible = o.userData.vis; ocultos = null; } };
-  }
-  // la parada de hoy: una banca maltratada, un poste de parada chueco, un farol que parpadea y se apaga, basura y manchas
-  function paradaFea(y) {
-    const g = new THREE.Group(); g.visible = false;
-    let seed = 7; const rnd = (a = 0, b = 1) => { seed = (seed * 16807) % 2147483647; return a + (b - a) * (seed / 2147483647); };
-    const mat = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: .95, ...o });
-    const M = { madera: mat(0x9a8c7c), metal: mat(0x7f8896, { roughness: .7 }), oxido: mat(0x8a6f5c), papel: mat(0xc9ccd4), lata: mat(0xa5574e), vidrio: mat(0x5f8a72, { roughness: .4 }), hierba: mat(0x5f7d5c) };
-    const add = (geo, m, x, yy, z, rx = 0, ry = 0, rz = 0, par = g) => { const o = new THREE.Mesh(geo, m); o.position.set(x, yy, z); o.rotation.set(rx, ry, rz); o.castShadow = o.receiveShadow = true; par.add(o); return o; };
-    const box = (w, h, d) => new THREE.BoxGeometry(w, h, d), cyl = (r1, r2, h, n = 10, open = false) => new THREE.CylinderGeometry(r1, r2, h, n, 1, open);
-    // banca: dos tablas de asiento, un respaldo entero y el otro colgando de un solo tornillo
-    const b = new THREE.Group(); b.position.set(-15.5, y, -10.2); b.rotation.y = .05; g.add(b);
-    add(box(13, .42, 1.35), M.madera, 0, 3.0, .75, 0, 0, 0, b); add(box(13, .42, 1.35), M.madera, 0, 2.94, -.8, 0, 0, .012, b);
-    add(box(13, .42, 1.3), M.madera, 0, 5.9, -1.75, .2, 0, 0, b);
-    add(box(12.4, .42, 1.3), M.madera, -.9, 3.9, -1.9, .2, 0, -.2, b);
-    for (const x of [-5.6, 5.6]) { add(box(.45, 3, .45), M.oxido, x, 1.5, 1.1, 0, 0, 0, b); add(box(.45, 6.6, .45), M.oxido, x, 3.3, -1.5, .12, 0, 0, b); add(box(.4, .4, 2.9), M.oxido, x, 2.7, -.2, 0, 0, 0, b); }
-    // poste de la parada, inclinado, con su letrero despintado
-    const p = new THREE.Group(); p.position.set(-25.5, y, -9.6); p.rotation.set(.03, 0, -.09); g.add(p);
-    add(cyl(.22, .22, 15), M.metal, 0, 7.5, 0, 0, 0, 0, p); add(box(3.4, 3.4, .16), M.oxido, 0, 13.2, .25, 0, 0, .06, p); add(box(2.2, .5, .18), M.papel, -.2, 13.7, .28, 0, 0, .06, p);
-    // farol viejo: casi no alumbra
-    const f = new THREE.Group(); f.position.set(-1.5, y, -12.2); f.rotation.z = .035; g.add(f);
-    add(cyl(.26, .36, 21), M.metal, 0, 10.5, 0, 0, 0, 0, f); add(box(.3, .3, 5.2), M.metal, 0, 21, 2.4, 0, 0, 0, f);
-    add(box(1.5, .5, 2.4), M.metal, 0, 20.75, 4.6, 0, 0, 0, f);
-    const foco = add(box(1.1, .12, 1.9), new THREE.MeshStandardMaterial({ color: 0x2a2620, emissive: 0xffc27a, emissiveIntensity: 0 }), 0, 20.46, 4.6, 0, 0, 0, f);
-    const luzF = new THREE.PointLight(0xffb866, 0, 70, 1.6); luzF.position.set(0, 19.6, 4.6); f.add(luzF);
-    // bote volteado y basura regada
-    add(cyl(1.7, 1.45, 4.4, 12, true), mat(0x6f7a86, { side: THREE.DoubleSide }), -7.6, y + 1.6, -11.3, 0, .5, Math.PI / 2);
-    for (let i = 0; i < 16; i++) {
-      const x = rnd(-24, 2), z = rnd(-11.6, -4.2), k = Math.floor(rnd(0, 4));
-      if (k === 0) add(cyl(.38, .38, 1.1, 8), M.lata, x, y + .38, z, Math.PI / 2, rnd(0, 3), 0);
-      else if (k === 1) add(new THREE.IcosahedronGeometry(rnd(.45, .75), 0), M.papel, x, y + .35, z, rnd(0, 3), rnd(0, 3), 0);
-      else if (k === 2) add(box(rnd(1, 1.9), .06, rnd(.8, 1.5)), M.papel, x, y + .05, z, 0, rnd(0, 3), 0);
-      else add(cyl(.26, .3, 1.5, 8), M.vidrio, x, y + .3, z, Math.PI / 2, rnd(0, 3), 0);
-    }
-    // manchas en la banqueta, un charco y hierba en las orillas
-    for (let i = 0; i < 7; i++) { const o = add(new THREE.CircleGeometry(rnd(1.6, 4.4), 14), new THREE.MeshBasicMaterial({ color: 0x030611, transparent: true, opacity: rnd(.22, .42), depthWrite: false }), rnd(-26, 6), y + .03 + i * .004, rnd(-11.5, -4.5), -Math.PI / 2); o.scale.x = rnd(.6, 1.5); o.castShadow = false; }
-    { const o = add(new THREE.CircleGeometry(2.3, 18), new THREE.MeshStandardMaterial({ color: 0x16284c, roughness: .1, metalness: .35, transparent: true, opacity: .6, depthWrite: false }), 4.6, y + .06, -5.6, -Math.PI / 2); o.scale.x = 1.5; o.castShadow = false; }
-    for (const [x, z] of [[-25.8, -9.2], [-25.1, -10.1], [-1.9, -12.6], [-1.0, -11.7], [-21.4, -11.4], [-9.8, -11.7], [5.5, -11.2]]) for (let i = 0; i < 4; i++) add(new THREE.ConeGeometry(.22, rnd(1.1, 2.3), 4), M.hierba, x + rnd(-.5, .5), y + .7, z + rnd(-.4, .4), rnd(-.3, .3), 0, rnd(-.3, .3));
-    return { g, luzF, foco };
-  }
-  // el farol titila débil mientras ella camina y se apaga para siempre justo cuando llega
-  function farol(t) {
-    if (t > 8.7) return 0;
-    const n = Math.sin(t * 23.1) * Math.sin(t * 7.3 + 1.3) * Math.sin(t * 41.7 + .4);
-    let k = .34 + .2 * Math.sin(t * 3.1) + (n > .22 ? .45 : 0) - (Math.sin(t * 13.7) > .9 ? .5 : 0);
-    if (t > 7.5) k *= (Math.sin(t * 39) > -.2 ? 1 : .1) * (1 - sm(t, 7.5, 8.7));
-    return clamp(k);
   }
   const listo = CON_BASE ? Promise.resolve() : import('../video/personas.js').then(async m => {
     const p = await m.loadPerson('estudiante', '/pitch-persona/');
@@ -168,23 +112,17 @@ export function setupPitch(c) {
     for (const mt of p.userData.mats) { mt.emissive = new THREE.Color(0x9dbdff); mt.emissiveMap = mt.map; mt.emissiveIntensity = .2; }
     const luz = new THREE.PointLight(0xc4dcff, 0, 20, 2); stage.root.add(luz);
     const tel = new THREE.Mesh(new THREE.BoxGeometry(.44, .82, .06), new THREE.MeshBasicMaterial({ color: 0xdcebff })); tel.visible = false; stage.root.add(tel);
-    // altura de la banqueta bajo su camino
+    // la banqueta de la parada queda a la altura de la de la maqueta
     stage.root.updateMatrixWorld(true);
-    const ray = new THREE.Raycaster(); ray.set(stage.root.localToWorld(V(12, 60, G.z)), V(0, -1, 0));
+    const ray = new THREE.Raycaster(); ray.set(stage.root.localToWorld(V(12, 60, -6.4)), V(0, -1, 0));
     const ys = ray.intersectObjects(stage.meshes, false).map(h => stage.root.worldToLocal(h.point.clone()).y).filter(y => y < 17.5);
     const gy = ys.length ? Math.max(...ys) : CAD.baseTop + .6;
     girl = { p, luz, tel, y: gy, animar: m.animar };
-    fea = paradaFea(gy); stage.root.add(fea.g);
-    // todo lo que se levanta de la banqueta es SafeWait (caseta, módulo, pinos): se oculta mientras se ve la parada fea
-    const techo = stage.root.localToWorld(V(0, gy + 1.2, 0)).y, bb = new THREE.Box3(), aparte = new Set([p, fea.g, bus.group, luz, tel]);
+    fea = paradaFea({ y: gy, calle: CAD.baseTop, banca: [G.x1, G.zBanca] }); stage.root.add(fea.g);
+    // mientras se ve la parada de hoy no se dibuja nada de la maqueta: ni la caseta ni su base
+    const aparte = new Set([p, fea.g, bus.group, luz, tel]);
     const dentro = o => { for (let q = o; q; q = q.parent) if (aparte.has(q)) return true; return false; };
-    const c = V(0, 0, 0), sz = V(0, 0, 0), sensor = stage.root.localToWorld(V(COLOR.x, CAD.baseTop, COLOR.z));
-    stage.root.traverse(o => {
-      if (!(o.isMesh || o.isLine) || dentro(o) || bb.setFromObject(o).isEmpty()) return;
-      bb.getCenter(c); bb.getSize(sz);
-      // también el sensor de color que asoma en la calle
-      if (bb.max.y > techo || (Math.hypot(c.x - sensor.x, c.z - sensor.z) < 3.5 && Math.max(sz.x, sz.z) < 7)) caseta.push(o);
-    });
+    stage.root.traverse(o => { if ((o.isMesh || o.isLine) && !dentro(o)) caseta.push(o); });
   }).catch(e => console.warn('persona:', e));
   const busIn = t => t < 0 ? null : BUS.a + (BUS.stop - BUS.a) * (1 - Math.pow(1 - ramp(t, 0, 3.4), 2.2));
 
@@ -194,9 +132,9 @@ export function setupPitch(c) {
     let g = null;
     if (to.girlT != null) { // la cámara la sigue de cerca mientras camina y luego se abre: ella queda chica, sola frente a la caseta apagada
       g = girlAt(to.girlT);
-      to.cam = { tgt: V(g.x - 3.5, (girl ? girl.y : 16.3) + 6.2, g.z), off: V(-9, 4, 40), vo: [-.15 * W0, .02 * H0] };
-      to.cam2 = 'espera'; to.camK = sm(to.girlT, G.t1 - .4, G.t1 + 2.8);
-      to.velo = 1 - to.camK;   // de cerca, el lado del texto se funde con la noche para que se lea
+      to.cam = { tgt: V(g.x - 3.5, (girl ? girl.y : 16.3) + 6.2, G.zCamina), off: V(-9, 4, 40), vo: [-.2 * W0, .02 * H0] };
+      to.cam2 = 'espera'; to.camK = sm(to.girlT, G.t1 - .6, G.t1 + 2.2);
+      to.velo = 1;   // el lado del texto se funde con la noche: detrás hay una barda rayada y no se leería
     }
     const e = dur ? ease(clamp(tau / dur)) : 1, cam = camOf(to), P = { busX: null, sosT: to.sosT, keysT: to.keysT };
     for (const k of NUM) P[k] = from && e < 1 ? from[k] + (to[k] - from[k]) * e : to[k];
@@ -285,7 +223,7 @@ export function setupPitch(c) {
       const q = fea && P.feo > .5 ? P.girl : null; girl.p.visible = !!q;   // ella solo existe en la parada fea
       if (q) {
         girl.p.position.set(q.x, girl.y, q.z); girl.p.rotation.y = q.rot;
-        girl.animar(girl.p, 'anda', q);
+        girl.animar(girl.p, 'libre', q.spec);
         const B = girl.p.userData.bones, hand = stage.root.worldToLocal(B.RHand.getWorldPosition(tmp)).clone(), head = stage.root.worldToLocal(B.Head.getWorldPosition(tmp)).clone();
         girl.tel.position.copy(hand).lerp(head, .16); girl.tel.lookAt(stage.root.localToWorld(head.clone()));
         girl.luz.position.copy(hand).lerp(head, .38);
@@ -296,10 +234,12 @@ export function setupPitch(c) {
     feoOn = !!fea && P.feo > .5;
     if (fea) {
       fea.g.visible = feoOn;
-      const k = feoOn && cur === 'situacion' ? farol(now - t0) : 0;
+      fea.quiebra(P.girl ? P.girl.quiebre : 1);
+      const k = feoOn && cur === 'situacion' ? farol(now - t0 + 8.7 - (G.t1 + 1.4)) : 0;   // se apaga poco después de que ella llega
       fea.luzF.intensity = k * 280; fea.foco.material.emissiveIntensity = k * 2.4;
     }
-    el.gl.style.opacity = sm(Math.abs(P.feo - .5) * 2, .2, 1).toFixed(3);
+    // en las slides de datos y personas la escena de la calle no se va de lado: se desvanece
+    el.gl.style.opacity = (sm(Math.abs(P.feo - .5) * 2, .2, 1) * (feoOn ? 1 - clamp(P.out) : 1)).toFixed(3);
 
     // cámara, con un vaivén muy lento para que la imagen nunca quede congelada
     const cam = view.camera, a = fijo ? 0 : P.sway * Math.sin(now * .42);

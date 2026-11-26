@@ -67,7 +67,9 @@ fM.src = '/video/?pitch&look=madera&armado';
 const api = f => f.contentWindow && f.contentWindow.pitch;
 const ready = f => new Promise(done => { const t = setInterval(() => { if (api(f)) { clearInterval(t); done(api(f)); } }, 50); });
 
-let lookK = 0, lookTo = 0, lastNight = -1, lastLook = -1, lastMs = 0;
+let lookK = 0, lookTo = 0, lastNight = -1, lastLook = -1, lastMs = 0, tSlide = 0;
+const sm = (t, a, b) => smooth(Math.min(1, Math.max(0, (t - a) / (b - a))));
+const pctEl = $('#pct'), pctBar = $('#pctBar'), medidor = document.querySelector('.medidor');
 // la tinta del texto sigue a la escena: azul marino de día, blanca de noche
 function tint(n, k) {
   if (Math.abs(n - lastNight) < .002 && Math.abs(k - lastLook) < .002) return;
@@ -86,6 +88,12 @@ function draw(t) {
   if (k < .999 && A) info = A.render(t, FIJO);
   if (k > .001 && M) { const m = M.render(t, FIJO); if (m && (k >= .5 || !info)) info = m; }
   if (info) { tint(info.night, k); deck.style.setProperty('--velo', info.velo.toFixed(3)); }
+  // la situación: la seguridad baja de 100 a 0 en tres escalones, uno por cada cosa que falta (mismos tiempos que index.html)
+  if (slides[idx].dataset.id === 'situacion') {
+    const u = t - tSlide, v = 100 - 33 * sm(u, 14.4, 15.3) - 33 * sm(u, 15.6, 16.5) - 34 * sm(u, 16.8, 17.7);
+    pctEl.textContent = Math.round(v); pctBar.style.transform = `scaleX(${(v / 100).toFixed(4)})`;
+    medidor.style.setProperty('--pc', `rgb(${mix([255, 107, 94], [207, 230, 255], v / 100)})`);
+  }
   // los puntos numerados siguen a la maqueta
   if (slides[idx].dataset.id === 'distribucion' && M) {
     M.project(NODOS.map(d => d.anchor)).forEach(([x, y], i) => { puntos[i].style.left = (x * 100).toFixed(2) + '%'; puntos[i].style.top = (y * 100).toFixed(2) + '%'; });
@@ -110,6 +118,7 @@ function show(i, instant = false) {
   lookTo = s.dataset.look === 'madera' ? 1 : 0;
   if (instant) lookK = lookTo;
   const t = FIJO ? 0 : now();
+  tSlide = t;
   for (const f of [fA, fM]) { const a = api(f); if (a) a.go(s.dataset.id, t, instant); }
   const part = s.dataset.part;
   if (!(part in inicio) && (part !== 'pitch' || i > 0)) inicio[part] = now();

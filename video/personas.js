@@ -156,6 +156,17 @@ export const POSES = {
     turn(p, 'Neck', X, .3 * cel * (1 - Math.min(1, Math.abs(giro) * 2))); turn(p, 'Head', X, .25 * cel * (1 - Math.min(1, Math.abs(giro) * 2)));
     turn(p, 'Head', Y, giro);
   },
+  // pose dada hueso por hueso (presentación): s trae la dirección de cada segmento y los giros del tronco y la cabeza;
+  // tilt inclina el cuerpo entero (negativo = hacia atrás)
+  libre(p, s) {
+    p.userData.inner.rotation.x = s.tilt || 0;
+    leg(p, 'L', s.thL, s.caL, s.foL); leg(p, 'R', s.thR, s.caR, s.foR);
+    arm(p, 'L', s.upL, s.frL, s.haL); arm(p, 'R', s.upR, s.frR, s.haR);
+    if (s.spine) turn(p, 'Spine', X, s.spine);
+    if (s.neck) turn(p, 'Neck', X, s.neck);
+    if (s.headX) turn(p, 'Head', X, s.headX);
+    if (s.headY) turn(p, 'Head', Y, s.headY);
+  },
   // caminando; mano: 'L' | 'R' va tomada de alguien más bajo
   camina(p, { mano = '', alto = 0 } = {}) {
     leg(p, 'L', [.04, -1, .42], [0, -1, .12], [.1, -.4, 1]); leg(p, 'R', [.04, -1, -.3], [0, -.8, -.6], [.1, -.9, .6]);
@@ -169,7 +180,7 @@ export const POSES = {
 export function pose(p, name, opts) { POSES[name](p, opts); ground(p); return p; }
 
 // altura (en el marco de la persona) del hueso de pie más bajo
-const PIES = ['LFoot', 'RFoot', 'LToe0', 'RToe0'], pv = V(0, 0, 0);
+const PIES = ['LFoot', 'RFoot', 'LToe0', 'RToe0'], pv = V(0, 0, 0), CADERA = 1.05;   // CADERA: del hueso de la pelvis al piso cuando está sentada en él
 function pieMin(p) {
   p.updateMatrixWorld(true);
   let y = Infinity;
@@ -181,9 +192,11 @@ function pieMin(p) {
 export function animar(p, name, opts) {
   const u = p.userData;
   for (const [o, q0] of u.rest) o.quaternion.copy(q0);
-  u.inner.position.y = u.y0;
+  u.inner.position.y = u.y0; u.inner.rotation.x = 0;
   POSES[name](p, opts);
-  u.inner.position.y += u.pie0 - pieMin(p);
+  // se apoya en lo que quede más abajo: los pies o, si está en el piso, la cadera
+  const pies = pieMin(p) - u.pie0, pel = u.bones.Pelvis ? p.worldToLocal(u.bones.Pelvis.getWorldPosition(pv)).y - CADERA : Infinity;
+  u.inner.position.y -= Math.min(pies, pel);
   return p;
 }
 // tinte de un solo tono (versión azul): conserva la luz y la sombra de la textura pero en la gama del color dado
