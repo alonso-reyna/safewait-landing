@@ -2,7 +2,7 @@
 // La página de afuera (pitch.js) manda: go(id, now) cambia de slide y render(now) dibuja un cuadro.
 // Cada slide es una "pose": valores de la maqueta y un encuadre, en función del tiempo que lleva la slide (tau).
 import * as THREE from 'three';
-import { ANCHORS, CAD } from '../src/scene.js';
+import { ANCHORS, CAD, EX, exK as avance } from '../src/scene.js';
 import { paradaFea, farol } from './parada.js';
 import { G, girlAt } from './chica.js';
 import { nodemcu } from './nodemcu.js';
@@ -133,6 +133,9 @@ export function setupPitch(c) {
 
   /* ---------- la slide de la situación: la estudiante (chica.js) en la parada de hoy (parada.js) ---------- */
   let girl = null, fea = null, feoOn = false, ocultos = null, soloImp = false;
+  // cuánto se aparta cada detalle con la vista separada, en el orden en que se crean: banca (con el piso), pinitos (con la
+  // banqueta), teclado (sobre su tapa) y repisa del SOS (con el muro del fondo)
+  const SIGUE = [[0, EX.floor, 0], [0, EX.walk, 0], [0, EX.lid + 4, 0], [0, EX.wall, -3]];
   const caseta = [];
   // piezas impresas en 3D (barrotes con su cremallera, esquinas del techo y polea) y todo lo que no lo es
   const IMPRESA = new Set(['corner', 'hl_bars_bars', 'pulley']), noImp = [];
@@ -254,6 +257,9 @@ export function setupPitch(c) {
     s.night = Math.min(1, .92 * P.night); s.dark = Math.min(1, P.night); s.lamp = P.lamp;
     s.door = P.door;
     s.bars = P.bars; s.oled = P.oled; s.explode = P.explode; s.xray = P.xray;
+    // separada, cada detalle sigue a su capa (como en la landing): si no, el teclado se queda en su sitio y aparece de la nada
+    { const e = Math.max(s.explode, stage.asm.ex);
+      details.pieces.forEach((p, i) => { const m = SIGUE[i]; if (!m) return; const k = e > 0 ? avance(e, Math.hypot(m[0], m[1], m[2])) : 0; p.group.position.set(m[0] * k, m[1] * k, m[2] * k); }); }
     s.roof = 0; s.sos = 0; s.busX = null; s.hl = null; s.led = null; s.plinth = !!CON_BASE;
     const hl = { sos: P.hlSos, door: P.hlDoor, bars: P.hlBars };
     for (const k in HLK) { const a = (hl[k] || 0) * (k === 'door' ? .45 : .8); for (const h of HLK[k]) h.mat.color.copy(h.base).lerp(HI, a); }

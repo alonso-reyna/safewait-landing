@@ -26,7 +26,7 @@ const NODOS = [
 // pos y zoom encuadran la cara de cada foto en su tarjeta
 const PERFILES = [
   { tag: 'Estudiantes', name: 'Daniela Torres', quien: '16 años, estudiante de prepa', img: fDaniela, pos: '50% 20%' },
-  { tag: 'Mujeres', name: 'Laura Méndez', quien: '29 años, embarazada', img: fEmbarazada, pos: '52% 16%', zoom: 1.5 },
+  { tag: 'Mujeres', name: 'Laura Méndez', quien: '29 años, embarazada', img: fEmbarazada, pos: '50% 46%', zoom: 1.06 },
   { tag: 'Niños', name: 'Mateo Garza', quien: '11 años, estudiante de primaria', img: fNino, pos: '92% 26%', zoom: 1.12 },
   { tag: 'Adultos mayores', name: 'José Ramírez', quien: '75 años, mecánico retirado', img: fJose, pos: '50% 20%' },
 ];
