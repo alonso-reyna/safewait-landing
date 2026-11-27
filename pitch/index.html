@@ -8,7 +8,8 @@
 </head>
 <body>
   <!-- Presentación final (Etapa 5): pitch de ventas, maqueta y dashboard.
-       Flechas o espacio para avanzar, F pantalla completa, T cronómetro. Textos de los nodos en pitch.js. -->
+       Flechas o espacio para avanzar, F pantalla completa, T cronómetro, R volver a empezar.
+       Los textos siguen pitch/MARCA.md; los datos de los nodos están en pitch.js. -->
   <div id="deck">
     <iframe id="f-azul" title="Maqueta 3D, versión azul" tabindex="-1"></iframe>
     <iframe id="f-madera" title="Maqueta 3D, versión de madera" tabindex="-1"></iframe>
@@ -17,96 +18,71 @@
     <a class="marca" href="#1" aria-label="SafeWait"><img src="/safewait-logo.svg" alt=""><span>SafeWait</span></a>
 
     <!-- ============ PARTE 1: PITCH DE VENTAS (3 min) ============ -->
-    <section class="slide" data-id="portada" data-part="pitch" data-shot="99">
+    <!-- abre solo con el logo al centro; el primer "siguiente" lo pasa a la izquierda, saca los textos y arma la maqueta -->
+    <section class="slide portada" data-id="portada" data-part="pitch" data-shot="99">
       <div class="col">
-        <p class="eyebrow" data-a="0">Implementación de IoT, equipo 4</p>
-        <h1 class="logo" data-a=".1"><img src="/safewait-logo.svg" alt=""><span>SafeWait</span></h1>
-        <p class="sub" data-a=".35">Esperar ya no es un riesgo.</p>
+        <p class="eyebrow">Implementación de IoT, equipo 4</p>
+        <h1 class="logo"><img src="/safewait-logo.svg" alt=""><span>SafeWait</span></h1>
+        <p class="sub">Esperar ya no es un riesgo.</p>
       </div>
     </section>
 
-    <!-- la situación: quien presenta la cuenta mientras la estudiante camina a la parada, espera y la seguridad baja a cero.
-         Los tiempos (data-a, --t0) siguen el guion de chica.js -->
+    <!-- la situación: quien presenta la cuenta mientras la estudiante camina a la parada, la seguridad baja a cero y el camión no llega.
+         Los tiempos (data-a, --t0) siguen el guion de chica.js; los escalones del medidor están en pitch.js -->
     <section class="slide" data-id="situacion" data-part="pitch" data-shot="24">
       <div class="col relato">
         <ol class="linea">
           <li data-a=".5" style="--t0:1.1s;--dt:5.3s"><time>10:00 p.m.</time><b>Sales de clases</b><span>15 minutos a pie</span></li>
-          <li data-a="6.5" style="--t0:7.2s;--dt:3.2s"><time>10:15 p.m.</time><b>Llegas a la parada</b><span>30 minutos esperando</span></li>
-          <li class="corte" data-a="10.5" style="--t0:11s;--dt:1.1s"><time>10:45 p.m.</time><b>Sigues ahí</b></li>
-          <li class="duda" data-a="12.2"><time>¿?</time><b>No sabes cuándo llega el camión</b></li>
+          <li data-a="6.5" style="--t0:7.2s;--dt:6.6s"><time>10:15 p.m.</time><b>Llegas a la parada</b>
+            <div class="medidor vidrio" data-a="7.9">
+              <div class="med-num">
+                <p class="med-t">Seguridad</p>
+                <p class="pct"><span id="pct">100</span><i>%</i></p>
+                <div class="med-barra"><i id="pctBar"></i></div>
+              </div>
+              <ul class="med-por"><li data-a="8.9">No hay luz</li><li data-a="10.3">No hay nadie</li><li data-a="11.7">No sabes cuándo llega</li></ul>
+            </div>
+          </li>
+          <li data-a="14"><time>10:45 p.m.</time><b>El camión todavía no llega</b></li>
         </ol>
-        <div class="medidor vidrio" data-a="13.4">
-          <div class="med-num">
-            <p class="med-t">Seguridad</p>
-            <p class="pct"><span id="pct">100</span><i>%</i></p>
-            <div class="med-barra"><i id="pctBar"></i></div>
-          </div>
-          <ul class="med-por"><li data-a="14.4">No hay luz</li><li data-a="15.6">No hay nadie</li><li data-a="16.8">No sabes cuándo llega</li></ul>
-        </div>
       </div>
     </section>
 
-    <!-- los datos: tres tiras de LED que se encienden en la proporción de cada cifra -->
-    <section class="slide ancha brillo" data-id="cifras" data-part="pitch" data-shot="9">
-      <div class="tope">
-        <p class="eyebrow" data-a="0">El problema en datos</p>
-        <h2 class="medio" data-lines>Esperar el camión de noche es un riesgo.</h2>
+    <!-- los datos: tres tiras de 10 focos, encendidos en la proporción exacta de cada cifra (data-v) -->
+    <section class="slide brillo" data-id="cifras" data-part="pitch" data-shot="9">
+      <h2 class="medio tope" data-lines>El riesgo en datos</h2>
+      <div class="tiras vidrio" data-a=".4">
+        <div class="tira" style="--t:.9s" data-v="6.11"><p class="num"><b>6</b> de cada 10</p><p class="txt">adultos se sienten inseguros en el transporte público.</p><div class="leds"></div></div>
+        <div class="tira" style="--t:2.1s" data-v="5.59"><p class="num"><b>5</b> de cada 10</p><p class="txt">dicen que el alumbrado de su ciudad no alcanza.</p><div class="leds"></div></div>
+        <div class="tira" style="--t:3.3s" data-v="4.47"><p class="num"><b>4</b> de cada 10</p><p class="txt">dejaron de salir de noche por miedo.</p><div class="leds"></div></div>
       </div>
-      <div class="tiras vidrio" data-a=".5">
-        <div class="tira" style="--t:1.0s" data-n="12"><p class="num">61.1&nbsp;%</p><p class="txt">de los adultos se siente inseguro en el transporte público.</p><div class="leds"></div></div>
-        <div class="tira" style="--t:2.3s" data-n="11"><p class="num">55.9&nbsp;%</p><p class="txt">dice que el alumbrado de su ciudad no alcanza.</p><div class="leds"></div></div>
-        <div class="tira" style="--t:3.6s" data-n="9"><p class="num">44.7&nbsp;%</p><p class="txt">dejó de salir de noche por miedo.</p><div class="leds"></div></div>
-        <p class="fuente">Fuente: INEGI. ENSU, septiembre de 2026, y ENVIPE 2026.</p>
-      </div>
+      <p class="fuente" data-a="1.2">Fuente: INEGI. ENSU, septiembre de 2026 (61.1 % y 55.9 %) y ENVIPE 2026, sobre 2025 (44.7 %).</p>
     </section>
 
-    <section class="slide ancha brillo" data-id="personas" data-part="pitch" data-shot="8">
-      <div class="tope">
-        <p class="eyebrow" data-a="0">Para quién</p>
-        <h2 class="medio" data-lines>Para quienes esperan solos.</h2>
-      </div>
-      <div class="personas">
-        <article class="persona vidrio" data-a=".6">
-          <img src="./personas/daniela.jpg" alt="Daniela Torres">
-          <div>
-            <h3>Daniela Torres</h3>
-            <p class="quien">16 años, estudiante de prepa</p>
-            <p class="dice">Regresa a su casa cuando ya oscureció y espera sola el camión.</p>
-            <ul class="pide"><li>Luz</li><li>Pedir ayuda</li><li>Saber cuándo llega</li></ul>
-          </div>
-        </article>
-        <article class="persona vidrio" data-a=".9">
-          <img src="./personas/jose.jpg" alt="José Ramírez">
-          <div>
-            <h3>José Ramírez</h3>
-            <p class="quien">75 años, mecánico retirado</p>
-            <p class="dice">Cruza la ciudad para ver a su hermana. De noche no alcanza a leer el número del camión.</p>
-            <ul class="pide"><li>Pedir ayuda</li><li>Saber qué camión es</li><li>Un lugar protegido</li></ul>
-          </div>
-        </article>
-      </div>
+    <section class="slide brillo" data-id="personas" data-part="pitch" data-shot="8">
+      <h2 class="medio tope" data-lines>Los perfiles más vulnerables</h2>
+      <div class="perfiles" id="perfiles"></div>
     </section>
 
-    <section class="slide" data-id="solucion" data-part="pitch" data-shot="3.6">
+    <!-- SafeWait se presenta: amanece y la maqueta aparece separada por capas y se arma -->
+    <section class="slide" data-id="solucion" data-part="pitch" data-shot="7">
       <div class="col">
-        <p class="eyebrow" data-a="1.0">La solución</p>
-        <h1 class="logo media" data-a="1.2"><img src="/safewait-logo.svg" alt=""><span>SafeWait</span></h1>
-        <p class="sub" data-a="1.6">Un paradero inteligente, seguro y funcional.</p>
+        <h1 class="logo media" data-a="1.4"><img src="/safewait-logo.svg" alt=""><span>SafeWait</span></h1>
+        <p class="sub" data-a="1.8">Un paradero inteligente, seguro y funcional.</p>
       </div>
     </section>
 
     <section class="slide nodo" data-id="luz" data-node="1" data-part="pitch" data-shot="7"></section>
     <section class="slide nodo" data-id="sos" data-node="2" data-part="pitch" data-shot="2.55"></section>
     <section class="slide nodo" data-id="acceso" data-node="3" data-part="pitch" data-shot="3.9"></section>
-    <section class="slide nodo" data-id="ruta" data-node="4" data-part="pitch" data-shot="5.0"></section>
+    <section class="slide nodo" data-id="ruta" data-node="4" data-part="pitch" data-shot="8.6"></section>
     <section class="slide nodo" data-id="barrotes" data-node="5" data-part="pitch" data-shot="10"></section>
 
-    <!-- lo que hace cada nodo se guarda en la base de datos y se ve en el dashboard -->
-    <section class="slide" data-id="registro" data-part="pitch" data-shot="9">
-      <div class="col">
-        <p class="eyebrow" data-a="0">Para la ciudad</p>
-        <h2 data-lines>Cada alerta|queda registrada.</h2>
-        <p class="lede" data-a=".8">El municipio ve en un dashboard a qué hora se pide más ayuda.</p>
+    <!-- lo que hace cada nodo se guarda en la base de datos y se ve en el dashboard, que se dibuja como el real -->
+    <section class="slide" data-id="registro" data-part="pitch" data-shot="12">
+      <div class="col angosta">
+        <h2 data-lines>Todo queda|registrado</h2>
+        <p class="lede" data-a=".7">Cada nodo manda sus datos a una base de datos, y se ven en un dashboard.</p>
       </div>
       <div class="datos-viz">
         <div class="bd vidrio-c" data-a=".7">
@@ -114,64 +90,73 @@
           <ol id="filas"></ol>
         </div>
         <svg class="une" viewBox="0 0 120 40" aria-hidden="true"><path d="M4 20h104M96 8l14 12-14 12"/></svg>
-        <div class="tablero" data-a="1.3">
-          <p class="cab"><img src="/safewait-logo.svg" alt="">Dashboard SafeWait</p>
-          <div class="kpis"><i></i><i></i><i></i><i></i><i></i></div>
-          <div class="graficas">
-            <figure><figcaption>Alertas SOS por hora</figcaption><div class="barras" id="g-sos"></div></figure>
-            <figure><figcaption>Luces por hora</figcaption><div class="barras apiladas" id="g-luz"></div></figure>
-            <figure><figcaption>Barrotes por hora</figcaption><div class="barras" id="g-bar"></div></figure>
-          </div>
-        </div>
+        <div class="tablero" id="tablero" data-a="1.3"></div>
       </div>
     </section>
 
     <section class="slide" data-id="cierre" data-part="pitch" data-shot="6">
       <div class="col">
-        <p class="eyebrow" data-a="0">SafeWait</p>
         <h2 class="grande" data-lines>Esperar ya no|es un riesgo.</h2>
       </div>
     </section>
 
-    <!-- ============ PARTE 2: LA MAQUETA (2 min) ============ -->
-    <section class="slide" data-id="maqueta" data-look="madera" data-part="maqueta" data-shot="6">
+    <!-- ============ PARTE 2: LA MAQUETA (2 min, y cada quien presenta su nodo) ============ -->
+    <section class="slide" data-id="escala" data-look="madera" data-part="maqueta" data-shot="8">
       <div class="col">
-        <p class="eyebrow" data-a=".5">La maqueta</p>
-        <h2 data-lines data-d=".6">De la idea|a la maqueta.</h2>
-        <p class="lede" data-a="1.5">Escala 1:15, en MDF cortado con láser y piezas impresas en 3D.</p>
+        <h2 class="dato" data-a=".6"><span>Escala</span><b>1:15</b></h2>
+      </div>
+      <svg class="cotas" id="cotas" aria-hidden="true"></svg>
+    </section>
+
+    <section class="slide" data-id="mdf" data-look="madera" data-part="maqueta" data-shot="6">
+      <div class="col">
+        <h2 data-lines>MDF cortado|con láser</h2>
+        <p class="lede" data-a=".8">Paneles de 2 mm.</p>
       </div>
     </section>
 
-    <section class="slide" data-id="distribucion" data-look="madera" data-part="maqueta" data-shot="8">
+    <section class="slide" data-id="impresas" data-look="madera" data-part="maqueta" data-shot="4.6">
       <div class="col">
-        <p class="eyebrow" data-a="0">Distribución</p>
-        <h2 data-lines>Cinco nodos,|una caseta.</h2>
-        <p class="lede" data-a=".8">Cada nodo tiene un sensor que detecta y un actuador que responde.</p>
+        <h2 data-lines>Piezas impresas|en 3D</h2>
+        <p class="lede" data-a=".8">En PLA.</p>
       </div>
-      <div class="puntos" id="puntos"></div>
+      <div class="puntos" id="piezas"></div>
     </section>
 
     <section class="slide" data-id="oculto" data-look="madera" data-part="maqueta" data-shot="6">
       <div class="col">
-        <p class="eyebrow" data-a="0">Lo que no se ve</p>
-        <h2 data-lines>Ni un cable|a la vista.</h2>
-        <p class="lede" data-a=".8">La base esconde los cinco NodeMCU, el cableado y el mecanismo de los barrotes.</p>
+        <h2 data-lines>Bajo la|plataforma</h2>
+        <p class="lede" data-a=".8">Cinco NodeMCU ESP8266 y el cableado.</p>
       </div>
     </section>
 
-    <section class="slide" data-id="flujo" data-look="madera" data-part="maqueta" data-shot="8">
+    <section class="slide" data-id="distribucion" data-look="madera" data-part="maqueta" data-shot="8">
+      <div class="col ancha">
+        <h2 data-lines>Cinco nodos</h2>
+        <div class="tabla vidrio-c" id="tabla" data-a=".6"></div>
+      </div>
+      <div class="puntos" id="puntos"></div>
+    </section>
+
+    <!-- cada integrante presenta su nodo: la misma animación del pitch y el camino del sensor al actuador -->
+    <section class="slide nodo demo" data-id="m-luz" data-pose="luz" data-node="1" data-part="maqueta" data-shot="7"></section>
+    <section class="slide nodo demo" data-id="m-sos" data-pose="sos" data-node="2" data-part="maqueta" data-shot="2.55"></section>
+    <section class="slide nodo demo" data-id="m-acceso" data-pose="acceso" data-node="3" data-part="maqueta" data-shot="3.9"></section>
+    <section class="slide nodo demo" data-id="m-ruta" data-pose="ruta" data-node="4" data-part="maqueta" data-shot="8.6"></section>
+    <section class="slide nodo demo" data-id="m-barrotes" data-pose="barrotes" data-node="5" data-part="maqueta" data-shot="10"></section>
+
+    <section class="slide" data-id="flujo" data-part="maqueta" data-shot="8">
       <div class="col">
-        <p class="eyebrow" data-a="0">Integración</p>
-        <h2 data-lines>Del sensor|al dashboard.</h2>
-        <ol class="via vidrio-c" data-a=".8"><li>Sensor</li><li>NodeMCU</li><li>API Flask</li><li>MySQL</li><li>Looker</li></ol>
+        <h2 data-lines>Cómo viajan|los datos</h2>
+        <ol class="via vidrio-c" data-a=".8"><li>Sensor</li><li>NodeMCU</li><li>API Flask</li><li>MySQL</li><li>Data Studio</li></ol>
       </div>
     </section>
 
     <!-- ============ PARTE 3: EL DASHBOARD (3 min, en vivo desde su liga) ============ -->
-    <section class="slide" data-id="dashboard" data-look="madera" data-part="dashboard" data-shot="6">
+    <section class="slide" data-id="dashboard" data-part="dashboard" data-shot="6">
       <div class="col">
         <h2 class="grande" data-lines>Dashboard</h2>
-        <a class="boton" id="lookerBtn" href="#" target="_blank" rel="noopener" data-a=".6">Abrir dashboard<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+        <a class="boton" id="dashBtn" href="#" target="_blank" rel="noopener" data-a=".6">Abrir en Data Studio<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
       </div>
     </section>
 
