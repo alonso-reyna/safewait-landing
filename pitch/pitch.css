@@ -87,6 +87,15 @@ h2.medio { font-size: calc(68 * var(--u)); }
 .linea > li::after { content: ""; position: absolute; left: calc(8 * var(--u)); top: calc(32 * var(--u)); bottom: calc(-2 * var(--u)); width: max(2px, calc(3 * var(--u))); border-radius: 99px; background: var(--sky); opacity: .7; transform-origin: top; transform: scaleY(0); transition: transform .3s ease; }
 .slide.on .linea > li::after { transform: none; transition: transform var(--dt, 1s) linear calc(.4s + var(--t0, 0s)); }
 .linea > li:last-child::after { display: none; }
+/* a las 10:45 no hay punto: es un reloj, con las manecillas corriendo mientras ella sigue esperando */
+.linea > li.espera::before { display: none; }
+.reloj { position: absolute; left: calc(-9.5 * var(--u)); top: calc(-2.5 * var(--u)); width: calc(38 * var(--u)); height: calc(38 * var(--u)); overflow: visible; filter: drop-shadow(0 0 calc(7 * var(--u)) rgba(127, 182, 255, .55)); }
+.reloj circle { fill: var(--night); stroke: var(--sky); stroke-width: 2.2; }
+.reloj line { stroke: #eaf3ff; stroke-width: 2; stroke-linecap: round; transform-origin: 12px 12px; transform: rotate(var(--a)); animation: gira var(--v) linear infinite; }
+.reloj .hora { --a: 322deg; --v: 30s; }
+.reloj .min { --a: 270deg; --v: 2.5s; }
+.reloj .eje { fill: #eaf3ff; stroke: none; }
+@keyframes gira { to { transform: rotate(calc(var(--a) + 360deg)); } }
 /* de las 10:00 a las 10:15 no hay raya: son sus pasos, que salen uno por uno mientras ella camina */
 .linea > li.camina { padding-bottom: calc(48 * var(--u)); }
 .linea > li.camina::after { display: none; }
@@ -296,5 +305,13 @@ svg.acc { width: 100%; border-bottom: max(1px, calc(1.5 * var(--u))) solid rgba(
 .cuenta { opacity: .3; }
 .crono { position: absolute; left: 50%; bottom: calc(40 * var(--u)); transform: translateX(-50%); padding: calc(10 * var(--u)) calc(20 * var(--u)); border-radius: 99px; background: rgba(13, 24, 62, .78); color: #fff; font-size: calc(18 * var(--u)); font-weight: 600; letter-spacing: .08em; font-variant-numeric: tabular-nums; }
 .crono.pasado { background: #c0392b; }
+/* pantalla completa: la esquina de arriba a la derecha guarda el botón, que solo se ve con el cursor encima */
+.esquina { position: absolute; top: 0; right: 0; width: calc(210 * var(--u)); height: calc(170 * var(--u)); }
+.completa { position: absolute; top: calc(46 * var(--u)); right: calc(52 * var(--u)); width: calc(58 * var(--u)); height: calc(58 * var(--u)); padding: 0; display: grid; place-items: center; border-radius: 50%; border: max(1px, calc(1.5 * var(--u))) solid rgba(255, 255, 255, .28); background: rgba(13, 24, 62, .62); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); color: #fff; cursor: pointer; opacity: 0; transition: opacity .25s ease, background .2s ease; }
+.esquina:hover .completa { opacity: 1; }
+.completa:hover { background: rgba(38, 125, 192, .9); }
+.completa svg { width: 46%; height: 46%; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.completa .cierra, .completa.puesta .abre { display: none; }
+.completa.puesta .cierra { display: inline; }
 .avance { position: absolute; left: 0; right: 0; bottom: 0; height: max(3px, calc(5 * var(--u))); background: var(--line); }
 .avance i { display: block; height: 100%; background: var(--accent); transform-origin: left; transform: scaleX(0); transition: transform .9s cubic-bezier(.16, 1, .3, 1); }

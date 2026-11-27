@@ -1,7 +1,8 @@
 // Presentación final de SafeWait (Etapa 5): pitch de ventas, maqueta y dashboard en un solo deck.
 // Las slides viven en index.html; la maqueta 3D corre en dos iframes de /video/?pitch (azul y madera) y aquí se decide
 // qué slide va, se mueve el tiempo de ambas escenas y se pasa de un look al otro.
-//   →, espacio, clic: siguiente    ←: anterior    F: pantalla completa    T: cronómetro de la parte    R: volver a empezar
+//   →, espacio, clic: siguiente    ←: anterior    F: pantalla completa (o el botón que sale al acercar el cursor a la esquina
+//   de arriba a la derecha)    T: cronómetro de la parte    R: volver a empezar
 //   La portada es solo el logo al centro (con sus textos y la maqueta sale nada más en el PDF); el siguiente paso es la slide 2,
 //   que abre con su frase (data-antes), y la animación empieza con el siguiente "siguiente".
 //   /pitch/#7 abre en la slide 7   |   /pitch/?fijo#7 la deja quieta en su cuadro final (así se saca el PDF: pitch/exportar.mjs)
@@ -266,6 +267,16 @@ function crono() {
   cronoEl.classList.toggle('pasado', s > lim);
 }
 
+// pantalla completa (tecla F o el botón de la esquina); Safari viejo solo trae la versión con prefijo
+const raiz = document.documentElement, btnCompleta = $('#completa');
+const enCompleta = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+function completa() {
+  const r = enCompleta() ? (document.exitFullscreen || document.webkitExitFullscreen).call(document) : (raiz.requestFullscreen || raiz.webkitRequestFullscreen).call(raiz);
+  if (r && r.catch) r.catch(() => null);
+}
+btnCompleta.addEventListener('click', () => { completa(); btnCompleta.blur(); });   // sin foco: el espacio sigue avanzando la presentación
+for (const ev of ['fullscreenchange', 'webkitfullscreenchange']) document.addEventListener(ev, () => btnCompleta.classList.toggle('puesta', enCompleta()));
+
 addEventListener('keydown', e => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const k = e.key;
@@ -274,12 +285,12 @@ addEventListener('keydown', e => {
   else if (k === 'ArrowLeft' || k === 'ArrowUp' || k === 'PageUp' || k === 'Backspace') { e.preventDefault(); show(idx - 1); }
   else if (k === 'Home') show(0);
   else if (k === 'End') show(slides.length - 1);
-  else if (k === 'f' || k === 'F') { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => null); }
+  else if (k === 'f' || k === 'F') completa();
   else if (k === 't' || k === 'T') cronoEl.hidden = !cronoEl.hidden;
   else if (k === 'r' || k === 'R') reset();
 });
 deck.addEventListener('click', e => {
-  if (e.target.closest('a')) return;
+  if (e.target.closest('a, .esquina')) return;   // ni las ligas ni la esquina del botón de pantalla completa cambian de slide
   const r = deck.getBoundingClientRect();
   if ((e.clientX - r.left) / r.width < .12) show(idx - 1); else avanza();
 });

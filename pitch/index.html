@@ -42,10 +42,12 @@
                 <p class="pct"><span id="pct">100</span><i>%</i></p>
                 <div class="med-barra"><i id="pctBar"></i></div>
               </div>
-              <ul class="med-por"><li data-a="8.9">No hay luz</li><li data-a="10.3">No hay nadie</li><li data-a="11.7">No sabes cuándo llega</li></ul>
+              <ul class="med-por"><li data-a="8.9">No hay luz</li><li data-a="10.3">Estás solo</li><li data-a="11.7">No sabes cuándo llega</li></ul>
             </div>
           </li>
-          <li data-a="14"><time>10:45 p.m.</time><b>Sigues esperando</b></li>
+          <li class="espera" data-a="14"><time>10:45 p.m.</time><b>Sigues esperando</b>
+            <!-- en vez del punto, un reloj que no deja de correr -->
+            <svg class="reloj" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line class="hora" x1="12" y1="12" x2="12" y2="7.4"/><line class="min" x1="12" y1="12" x2="12" y2="4.8"/><circle class="eje" cx="12" cy="12" r="1.3"/></svg></li>
         </ol>
       </div>
     </section>
@@ -55,7 +57,7 @@
       <h2 class="medio tope" data-lines>El riesgo en datos</h2>
       <div class="tiras vidrio" data-a=".4">
         <div class="tira" style="--t:.9s" data-n="7"><p class="num"><b>7</b> de cada 10</p><p class="txt"><b>mujeres</b> se sienten inseguras en el transporte público.</p><div class="leds"></div></div>
-        <div class="tira" style="--t:2.1s" data-n="6"><p class="num"><b>6</b> de cada 10</p><p class="txt"><b>personas</b> dicen que el alumbrado de su ciudad no alcanza.</p><div class="leds"></div></div>
+        <div class="tira" style="--t:2.1s" data-n="6"><p class="num"><b>6</b> de cada 10</p><p class="txt"><b>personas</b> dicen que en su ciudad falta alumbrado público.</p><div class="leds"></div></div>
         <div class="tira" style="--t:3.3s" data-n="4"><p class="num"><b>4</b> de cada 10</p><p class="txt"><b>adultos</b> dejaron de salir de noche por miedo.</p><div class="leds"></div></div>
       </div>
       <p class="fuente" data-a="1.2">Fuente: INEGI. ENSU, septiembre de 2026 (66.6 % y 55.9 %) y ENVIPE 2026, sobre 2025 (44.7 %).</p>
@@ -178,6 +180,9 @@
       <p class="cuenta" id="cuenta"></p>
     </footer>
     <p class="crono" id="crono" hidden></p>
+    <!-- pantalla completa: el botón solo aparece al acercar el cursor a la esquina (también con la tecla F) -->
+    <div class="esquina"><button class="completa" id="completa" type="button" tabindex="-1" aria-label="Pantalla completa">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path class="abre" d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/><path class="cierra" d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5"/></svg></button></div>
     <div class="avance"><i id="avance"></i></div>
   </div>
   <script type="module" src="./pitch.js"></script>
