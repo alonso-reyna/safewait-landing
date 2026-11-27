@@ -62,7 +62,7 @@ const POSES = {
   // la base se vuelve translúcida y cinco NodeMCU orbitan la maqueta (mcu)
   oculto: () => ({ cam: 'ladoB', zoom: 1.2, xray: 1, ang: .16, sway: .04, mcu: 1 }),
   distribucion: () => ({ cam: 'altoB', lift: 1, sway: .03 }),
-  // los cinco NodeMCU flotan alrededor de la maqueta y mandan sus datos a la nube, que aparece arriba (nube)
+  // los cinco NodeMCU flotan alrededor de la maqueta y mandan sus datos a la laptop de la API, y ella a la nube (nube)
   flujo: () => ({ cam: 'nube', ang: .2, sway: .04, mcu: 1, nube: 1 }),
   dashboard: () => ({ ang: .08 }),
   // en la parte de maqueta cada nodo es el fondo de quien lo presenta: su animación se repite hasta que cambie la slide
@@ -114,8 +114,8 @@ export function setupPitch(c) {
       altoB: c.fit({ cx: W * .71, cy: H * .38, w: W * .38, h: H * .5 }, W, H, .8),
       abiertoB: c.fit({ cx: W * .7, cy: H * .6, w: W * .31, h: H * .33 }, W, H, .42),
       impresas: c.fit({ cx: W * .69, cy: H * .6, w: W * .36, h: H * .36 }, W, H, .34),
-      // más chica y abajo, para que arriba quepa la nube
-      nube: c.fit({ cx: W * .7, cy: H * .7, w: W * .4, h: H * .42 }, W, H),
+      // chica y abajo, para que arriba quepan la laptop de la API y, más arriba, la nube
+      nube: c.fit({ cx: W * .71, cy: H * .79, w: W * .3, h: H * .3 }, W, H),
       light: right(L[1][2], .18, 1.22), sos: right(L[2][2], .19, 1.42), door: right(L[3][2], .2, 1.3), route: right(L[4][2], .18, 1.28),
       // Ruta con sus componentes flotando a la izquierda: la maqueta un poco más chica y más a la derecha, para no quedar debajo de ellos
       routeD: right(L[4][2], .235, 1.42),
@@ -171,8 +171,9 @@ export function setupPitch(c) {
   const orbita = new THREE.Group(); orbita.visible = false; stage.root.add(orbita);
   const placas = [0, 1, 2, 3, 4].map(() => { const o = nodemcu(); o.scale.setScalar(3.1); orbita.add(o); return o; });
   for (const o of placas) o.traverse(q => { if (q.isMesh) noImp.push(q); });
-  // la nube con la base de datos, y lo que le manda cada placa (slide "Cómo viajan los datos")
-  const NUBE = nube(placas.length), NUBE_EN = V(-6, 66, -9); stage.root.add(NUBE.g, NUBE.aire);
+  // la laptop con la API, la nube con la base de datos y lo que viaja entre las placas y ellas (slide "Cómo viajan los datos")
+  const NUBE = nube(placas.length), NUBE_EN = V(2, 99, -8), LAP_EN = V(-3, 59, -4); stage.root.add(NUBE.g, NUBE.lap, NUBE.aire);
+  NUBE.lap.rotation.set(.1, .2, 0);
   { // la caseta se esconde justo al dibujar y se restaura al terminar, para no pelear con lo que la escena decide en cada cuadro
     const antes = stage.scene.onBeforeRender, despues = stage.scene.onAfterRender;
     stage.scene.onBeforeRender = function () { antes.apply(this, arguments); if (grandeK > 1.001) agranda(); const lista = soloImp ? noImp : feoOn ? caseta : null; if (lista) { for (const o of lista) { o.userData.vis = o.visible; o.visible = false; } ocultos = lista; } };
@@ -356,9 +357,9 @@ export function setupPitch(c) {
     if (orbita.visible) placas.forEach((o, i) => {
       const a = i * Math.PI * .4 + (fijo ? .5 : now * .32), k = smooth(clamp(P.mcu * 1.6 - i * .15));
       o.position.set(Math.sin(a) * 43 * k, 9 + 9 * P.nube + 5 * Math.cos(a) + 1.2 * Math.sin(now * 1.1 + i * 2) + 26 * (1 - k), -7.7 + Math.cos(a) * 35 * k);
-      o.rotation.set(.5 + .2 * Math.sin(now * .7 + i), a * 1.5 + i, .25 * Math.cos(now * .5 + i * 1.7)); o.scale.setScalar(3.1 * k + .001);
+      o.rotation.set(.5 + .2 * Math.sin(now * .7 + i), a * 1.5 + i, .25 * Math.cos(now * .5 + i * 1.7)); o.scale.setScalar((3.1 - .75 * P.nube) * k + .001);   // con la nube, más chicas: la maqueta también lo está
     });
-    NUBE.update(fijo ? 3.3 : now, P.mcu > .01 ? clamp(P.nube) : 0, NUBE_EN, placas, cam);
+    NUBE.update(fijo ? 3.3 : now, P.mcu > .01 ? clamp(P.nube) : 0, NUBE_EN, LAP_EN, placas, cam);
     // foco: primero solo las piezas impresas, que se copian nítidas a su lienzo; luego la escena completa, que se desenfoca
     const foco = P.foco > .01;
     grandeK = 1 + (GRANDE - 1) * smooth(clamp(P.foco));

@@ -2,8 +2,8 @@
 // Las slides viven en index.html; la maqueta 3D corre en dos iframes de /video/?pitch (azul y madera) y aquí se decide
 // qué slide va, se mueve el tiempo de ambas escenas y se pasa de un look al otro.
 //   →, espacio, clic: siguiente    ←: anterior    F: pantalla completa    T: cronómetro de la parte    R: volver a empezar
-//   La portada abre solo con el logo: el primer "siguiente" saca los textos y arma la maqueta, el segundo pasa a la slide 2.
-//   La slide 2 abre con su frase (data-antes) y la animación empieza con el siguiente "siguiente".
+//   La portada es solo el logo al centro (con sus textos y la maqueta sale nada más en el PDF); el siguiente paso es la slide 2,
+//   que abre con su frase (data-antes), y la animación empieza con el siguiente "siguiente".
 //   /pitch/#7 abre en la slide 7   |   /pitch/?fijo#7 la deja quieta en su cuadro final (así se saca el PDF: pitch/exportar.mjs)
 import '@fontsource-variable/inter';
 import '@fontsource-variable/inter-tight';
@@ -90,6 +90,8 @@ document.querySelectorAll('.slide.nodo').forEach(s => {
     <div class="pasos" data-a=".8">${NODOS.map((_, i) => `<i class="${i + 1 < n ? 'hecho' : i + 1 === n ? 'aqui' : ''}"></i>`).join('')}</div>`}
   </div>`;
 });
+// los pasos de las 10:00 a las 10:15: cinco huellas de zapato, con la punta hacia abajo
+document.querySelectorAll('.huellas').forEach(h => { h.innerHTML = Array.from({ length: 5 }, (_, i) => `<svg style="--i:${i}" viewBox="0 0 10 16"><ellipse cx="5" cy="2.3" rx="2.3" ry="2.1"/><ellipse cx="5" cy="11.2" rx="3.9" ry="4.7"/></svg>`).join(''); });
 // tiras de LED del problema: 10 focos y se encienden los de la cifra redondeada
 document.querySelectorAll('.tira').forEach(t => {
   t.querySelector('.leds').innerHTML = Array.from({ length: 10 }, (_, i) => `<i class="${i < +t.dataset.n ? 'si' : ''}" style="--i:${i}"></i>`).join('');
@@ -204,10 +206,10 @@ function tick(ms) {
 
 /* ---------- navegación ---------- */
 const partes = [...document.querySelectorAll('#partes li')], inicio = {};
-// la portada espera con el logo al centro (pendiente); al abrirse, el logo pasa a su lugar y la maqueta se arma
+// en vivo la portada es solo el logo al centro, sin maqueta; abierta (logo a un lado, textos y maqueta) sale nada más en el PDF
 const portada = slides[0], logo0 = portada.querySelector('.logo');
 let previa = false;   // la slide está en su título previo (data-antes) y espera el siguiente "siguiente" para empezar
-let pendiente = idx === 0 && !FIJO, abiertaEn = null;   // abiertaEn: cuándo se abrió la portada, mientras se siga en ella
+const SOLO_LOGO = !FIJO;
 const centra = () => portada.style.setProperty('--cx', (deck.clientWidth / 2 - portada.querySelector('.col').offsetLeft - 1.14 * logo0.offsetWidth / 2).toFixed(1) + 'px');   // 1.14: la escala del logo solo (pitch.css)
 addEventListener('resize', centra);
 function show(i, instant = false) {
@@ -215,8 +217,7 @@ function show(i, instant = false) {
   const s = slides[i], prev = slides[idx];
   if (prev !== s) { prev.classList.remove('on', 'pre'); prev.classList.add('out'); setTimeout(() => prev.classList.remove('out'), 450); }
   idx = i;
-  if (i > 0) { pendiente = false; abiertaEn = null; }
-  portada.classList.toggle('abierta', !pendiente);
+  portada.classList.toggle('abierta', !SOLO_LOGO);
   previa = !FIJO && !!s.dataset.antes;
   s.classList.remove('out'); s.classList.toggle('pre', previa); s.classList.toggle('on', !previa);
   lookTo = s.dataset.look === 'madera' ? 1 : 0;
@@ -224,34 +225,33 @@ function show(i, instant = false) {
   const t = FIJO ? 0 : now();
   tSlide = t;
   for (const f of [fA, fM]) { const a = api(f); if (a) a.go(previa ? s.dataset.antes : s.dataset.pose || s.dataset.id, t, instant); }
+  if (i === 0 && SOLO_LOGO) { const a = api(fA); if (a) a.reset(); }   // la maqueta no se ve en la portada
   if (flota) flota.show(s.dataset.id, t, instant || FIJO);
   const part = s.dataset.part;
   if (!(part in inicio) && (part !== 'pitch' || i > 0)) inicio[part] = now();
   partes.forEach(p => p.classList.toggle('aqui', p.dataset.part === part));
-  deck.classList.toggle('sin-marca', s.dataset.id === 'portada' || s.dataset.id === 'solucion' || s.dataset.id === 'gracias');
-  deck.classList.toggle('sin-pie', i === 0 && pendiente);
+  const inmersa = 'inmersa' in s.dataset;   // slides sin marca ni pie, para que nada distraiga de la escena
+  deck.classList.toggle('sin-marca', inmersa || s.dataset.id === 'portada' || s.dataset.id === 'solucion' || s.dataset.id === 'gracias');
+  deck.classList.toggle('sin-pie', i === 0 && SOLO_LOGO);
+  deck.classList.toggle('inmersa', inmersa);
   $('#cuenta').textContent = String(i + 1).padStart(2, '0') + ' / ' + slides.length;
   $('#avance').style.transform = `scaleX(${((i + 1) / slides.length).toFixed(4)})`;
   if (location.hash !== '#' + (i + 1)) history.replaceState(null, '', location.pathname + location.search + '#' + (i + 1));
   if (FIJO) draw(+s.dataset.shot || 6);   // sin reloj: cada slide se dibuja en su cuadro final
 }
 
-// siguiente: en la portada, la primera vez la abre en vez de cambiar de slide
+// siguiente: una slide con título previo primero lo quita y empieza; las demás pasan a la que sigue
 function avanza() {
   if (previa) {   // el título previo se va y la slide empieza de cero
     const s = slides[idx]; previa = false; s.classList.remove('pre'); s.classList.add('on'); tSlide = now();
     for (const f of [fA, fM]) { const a = api(f); if (a) a.go(s.dataset.pose || s.dataset.id, tSlide); }
     return;
   }
-  if (idx !== 0 || !pendiente) return show(idx + 1);
-  pendiente = false; abiertaEn = now(); portada.classList.add('abierta'); deck.classList.remove('sin-pie');
-  const a = api(fA); if (a) a.entrada(abiertaEn);   // si la escena aún no carga, toma este mismo instante en cuanto esté
+  show(idx + 1);
 }
-// R: todo como al abrir. Primera slide, la portada con solo el logo otra vez y los cronómetros en cero
+// R: todo como al abrir. Primera slide y los cronómetros en cero
 function reset() {
   for (const k in inicio) delete inicio[k];
-  pendiente = !FIJO; abiertaEn = null;
-  const a = api(fA); if (a && pendiente) a.reset();
   show(0, true);
 }
 
@@ -299,7 +299,7 @@ window.foto = async i => {
 };
 window.total = slides.length;
 await ready(fA);
-if (pendiente) api(fA).reset(); else if (abiertaEn != null) api(fA).entrada(abiertaEn); else api(fA).armada();
+if (idx === 0 && SOLO_LOGO) api(fA).reset(); else api(fA).armada();
 show(idx, true);
 if (FIJO) { await ready(fM); await api(fA).listo; await window.foto(idx); }
 else { requestAnimationFrame(tick); ready(fM).then(a => a.go(slides[idx].dataset.pose || slides[idx].dataset.id, now(), true)); }
