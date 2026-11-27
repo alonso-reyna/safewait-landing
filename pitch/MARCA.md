@@ -22,6 +22,7 @@ Frases fijas: "Esperar ya no es un riesgo." (lema) y "Un paradero inteligente, s
 - Superficies: vidrio oscuro (`.vidrio`) sobre escenas de noche, vidrio claro (`.vidrio-c`) sobre escenas de día y sobre la maqueta de madera.
 - Filas de datos con fondo suave y esquinas redondas, nunca con líneas divisorias.
 - La maqueta azul es el producto (pitch y nodos); la de madera es la maqueta física (materiales y distribución).
+- Cuando cada integrante presenta su nodo, sobre cada tarjeta (Sensor, NodeMCU, Actuador) flota su componente real en 3D, a su propia escala. Giran despacio y hacen lo mismo que la maqueta: la tira enciende, el buzzer suena, el servo abre, la pantalla muestra el color, la tecla se oprime y el motor gira.
 
 ## Movimiento
 

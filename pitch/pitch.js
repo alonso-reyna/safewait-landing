@@ -12,15 +12,16 @@ import fDaniela from './personas/daniela.jpg';
 import fEmbarazada from './personas/embarazada.jpg';
 import fNino from './personas/nino.jpg';
 import fJose from './personas/jose.jpg';
+import { flotantes } from './flotan.js';
 
 // Los cinco nodos (en el orden de TEAM): el beneficio para el pitch, y para la maqueta su sensor y su actuador
-// con el modelo que da el reporte de la Etapa 4.
+// con el modelo que da el reporte de la Etapa 4 (piezas: sus modelos 3D en componentes.js, que flotan sobre las tarjetas).
 const NODOS = [
-  { name: 'Iluminación', anchor: 'light', title: 'La luz se enciende sola cuando oscurece.', sensor: ['Fotorresistencia', 'LDR'], act: ['Tira LED', 'WS2812B'], event: 'Luces encendidas' },
-  { name: 'SOS', anchor: 'sos', title: 'Presionas y suena la alarma.', sensor: ['Sensor de fuerza', 'FSR 402'], act: ['Buzzer', 'Activo de 5 V'], event: 'Alerta activada' },
-  { name: 'Acceso', anchor: 'door', title: 'La puerta abre solo con tarjeta autorizada.', sensor: ['Lector NFC', 'MFRC522'], act: ['Servomotor', 'MG90S'], event: 'Tarjeta autorizada' },
-  { name: 'Ruta', anchor: 'route', title: 'La pantalla te dice qué camión llegó.', sensor: ['Sensor de color', 'TCS3200'], act: ['Pantalla OLED', 'SSD1306'], event: 'Ruta 2 detectada' },
-  { name: 'Barrotes', anchor: 'bars', title: 'Con una clave, los barrotes protegen la caseta.', sensor: ['Teclado 4x4', 'Keypad'], act: ['Motor a pasos', '28BYJ-48'], event: 'Barrotes arriba' },
+  { name: 'Iluminación', anchor: 'light', title: 'La luz se enciende sola cuando oscurece.', sensor: ['Fotorresistencia', 'LDR'], act: ['Tira LED', 'WS2812B'], piezas: ['ldr', 'tira'], event: 'Luces encendidas' },
+  { name: 'SOS', anchor: 'sos', title: 'Presionas y suena la alarma.', sensor: ['Sensor de fuerza', 'FSR 402'], act: ['Buzzer', 'Activo de 5 V'], piezas: ['fsr', 'buzzer'], event: 'Alerta activada' },
+  { name: 'Acceso', anchor: 'door', title: 'La puerta abre solo con tarjeta autorizada.', sensor: ['Lector NFC', 'MFRC522'], act: ['Servomotor', 'MG90S'], piezas: ['rfid', 'servo'], event: 'Tarjeta autorizada' },
+  { name: 'Ruta', anchor: 'route', title: 'La pantalla te dice qué camión llegó.', sensor: ['Sensor de color', 'TCS3200'], act: ['Pantalla OLED', 'SSD1306'], piezas: ['color', 'oled'], bruma: true, event: 'Ruta 2 detectada' },
+  { name: 'Barrotes', anchor: 'bars', title: 'Con una clave, los barrotes protegen la caseta.', sensor: ['Teclado 4x4', 'Keypad'], act: ['Motor a pasos', '28BYJ-48'], piezas: ['teclado', 'motor'], event: 'Barrotes arriba' },
 ];
 // quiénes corren más riesgo al esperar solos (reporte de la Etapa 4: mujeres, adultos mayores, niños y estudiantes).
 // pos y zoom encuadran la cara de cada foto en su tarjeta
@@ -142,6 +143,9 @@ fM.src = '/video/?pitch&look=madera&armado';
 const api = f => f.contentWindow && f.contentWindow.pitch;
 const ready = f => new Promise(done => { const t = setInterval(() => { if (api(f)) { clearInterval(t); done(api(f)); } }, 50); });
 
+// los componentes reales de cada nodo, flotando sobre su tarjeta (solo en las slides donde cada quien presenta el suyo)
+let flota = null;   // se crea ya con las tipografías cargadas (sus texturas llevan texto)
+
 let lookK = 0, lookTo = 0, lastNight = -1, lastLook = -1, lastMs = 0, tSlide = 0;
 const sm = (t, a, b) => smooth(clamp((t - a) / (b - a)));
 const pctEl = $('#pct'), pctBar = $('#pctBar'), medidor = document.querySelector('.medidor');
@@ -166,6 +170,7 @@ function draw(t) {
   if (k < .999 && A) info = A.render(t, FIJO);
   if (k > .001 && M) { const m = M.render(t, FIJO); if (m && (k >= .5 || !info)) info = m; }
   if (info) { tint(info.night, k); deck.style.setProperty('--velo', info.velo.toFixed(3)); }
+  if (flota) flota.draw(t, info, FIJO);
   // la situación: la seguridad baja de 100 a 0 en tres escalones, uno por cada cosa que falta (mismos tiempos que index.html)
   if (id === 'situacion') {
     const v = 100 - 33 * sm(u, 9.3, 10.2) - 33 * sm(u, 10.7, 11.6) - 34 * sm(u, 12.1, 13);
@@ -216,6 +221,7 @@ function show(i, instant = false) {
   const t = FIJO ? 0 : now();
   tSlide = t;
   for (const f of [fA, fM]) { const a = api(f); if (a) a.go(s.dataset.pose || s.dataset.id, t, instant); }
+  if (flota) flota.show(s.dataset.id, t, instant || FIJO);
   const part = s.dataset.part;
   if (!(part in inicio) && (part !== 'pitch' || i > 0)) inicio[part] = now();
   partes.forEach(p => p.classList.toggle('aqui', p.dataset.part === part));
@@ -273,6 +279,7 @@ addEventListener('hashchange', () => { const n = parseInt(location.hash.slice(1)
 
 /* ---------- arranque ---------- */
 await document.fonts.ready;
+flota = flotantes(deck, Object.fromEntries([...document.querySelectorAll('.slide.nodo.demo')].map(s => [s.dataset.id, NODOS[s.dataset.node - 1]])));
 centra();
 slides[idx].classList.add('on');
 show(idx, true);

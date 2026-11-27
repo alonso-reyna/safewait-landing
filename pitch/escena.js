@@ -64,7 +64,8 @@ const POSES = {
   // en la parte de maqueta cada nodo es el fondo de quien lo presenta: su animación se repite hasta que cambie la slide
   // (SOS y Acceso ya se repiten solos)
   'd-luz': t => { const p = ciclo(t, 10.2); return { cam: 'light', lift: 1, night: hold(p, 1.7, 3.2, 7.6, 9.3), lamp: hold(p, 2.8, 4.4, 7.2, 8.7) }; },
-  'd-ruta': t => { const p = ciclo(t, 14.6), k = hold(p, 5.2, 6.5, 9.8, 11.1); return { cam: 'route', cam2: 'oled', camK: k, velo: k, lift: 1, busT: p - .9, busOut: ramp(p, 11.5, 14), oled: hold(p, 4.5, 4.9, 11.2, 11.6) }; },
+  // (el velo vuelve cuando el camión se va: sale por el lado del texto y así se pierde en el fondo en vez de cruzarlo)
+  'd-ruta': t => { const p = ciclo(t, 14.6), k = hold(p, 5.2, 6.5, 9.8, 11.1); return { cam: 'routeD', cam2: 'oled', camK: k, velo: Math.max(k, hold(p, 12.2, 13.1, 14, 14.6)), lift: 1, busT: p - .9, busOut: ramp(p, 11.5, 14), oled: hold(p, 4.5, 4.9, 11.2, 11.6) }; },
   'd-barrotes': t => { const p = ciclo(t, 13.6), k = hold(p, 1.0, 2.5, 5.3, 6.9); return { cam: 'bars', cam2: 'keypad', camK: k, velo: k, hlBars: sm(t, .6, 1.6), keysT: p - 2.9, bars: hold(p, 6.1, 8.3, 10.4, 12.7) }; },
   gracias: () => ({ cam: 'chico' }),
 };
@@ -111,6 +112,8 @@ export function setupPitch(c) {
       abiertoB: c.fit({ cx: W * .7, cy: H * .6, w: W * .31, h: H * .33 }, W, H, .42),
       impresas: c.fit({ cx: W * .69, cy: H * .6, w: W * .36, h: H * .36 }, W, H, .34),
       light: right(L[1][2], .18, 1.22), sos: right(L[2][2], .19, 1.42), door: right(L[3][2], .2, 1.3), route: right(L[4][2], .18, 1.28),
+      // Ruta con sus componentes flotando a la izquierda: la maqueta un poco más chica y más a la derecha, para no quedar debajo de ellos
+      routeD: right(L[4][2], .235, 1.42),
       espera: { tgt: V(G.x1 + 1, 22.2, -9), off: V(11, 4.5, 50), vo: [-.25 * W, 0] },
       oled: right(L[5][2], .2, 1.1), keypad: right(L[7][2], .2, 1.2), bars: right(L[8][2], .2, 1.3),
     };
@@ -365,7 +368,10 @@ export function setupPitch(c) {
         d.style.transform = `scale(${(.72 + .28 * on).toFixed(3)})`;
       });
     }
-    return { night: Math.min(1, P.night), velo: P.velo };
+    // lo que hace cada nodo en este cuadro, para las piezas que flotan sobre las tarjetas (flotan.js)
+    let tecla = null;   // la tecla que se está oprimiendo y con qué fuerza: [tecla, 0 a 1]
+    if (kT != null) CODE.forEach((ch, i) => { const d = kT - i * KEY_STEP; if (d >= 0 && d < .36) tecla = [ch, Math.sin(Math.PI * d / .36)]; });
+    return { night: Math.min(1, P.night), velo: P.velo, lamp: s.lamp, door: P.door, oled: P.oled, bars: P.bars, tecla, sos: sosDt, pad: padK };
   }
 
   // dónde cae en pantalla el ancla de cada nodo (fracciones del ancho y el alto)
