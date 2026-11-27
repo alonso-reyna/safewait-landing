@@ -13,7 +13,7 @@ const sale = t => 1 - Math.pow(1 - clamp(t), 3);
 // encuadre de cada pieza: un cuadro de LADO (en --u) centrado SUBE arriba de su tarjeta, donde su radio mide RADIO
 // (el cuadro es más grande que la pieza para que quepan las ondas del buzzer o la cola del sensor de fuerza)
 const FOV = 20, LADO = 330, RADIO = 100, SUBE = 118;
-const ENTRA = 1.15, CADA = .17, DURA = 1.1;   // la entrada: cuándo empieza la primera, cada cuánto las demás y lo que tarda
+const ENTRA = .9, CADA = .14, DURA = .9;   // la entrada: cuándo empieza la primera, cada cuánto las demás y lo que tarda
 
 // sets: { idDeSlide: { piezas: [sensor, actuador], bruma } } con los nombres de componentes.js. bruma: detrás de las piezas el
 // fondo se aclara un poco, para las slides donde la maqueta alcanza a meterse debajo de ellas
@@ -40,7 +40,9 @@ export function flotantes(deck, sets) {
   const grupos = {};
   for (const id in sets) {
     const s = deck.querySelector(`.slide[data-id="${id}"]`);
-    const mcu = nodemcu(); mcu.userData = { alto: 50, radio: 3, giro: -.55 };
+    // el NodeMCU lleva su LED azul junto a la antena: parpadea cuando el sensor detecta
+    const mcu = nodemcu(), led = COMP.ledMcu(); led.position.set(-1.78, .2, -.7); mcu.add(led);
+    mcu.userData = { alto: 50, radio: 3, giro: -.55, fx: (f, t, k) => led.userData.fx(k) };
     grupos[id] = { lis: [...s.querySelectorAll('.cadena li')], bruma: !!sets[id].bruma, piezas: [COMP[sets[id].piezas[0]](), mcu, COMP[sets[id].piezas[1]]()].map(monta) };
   }
 
@@ -79,6 +81,7 @@ export function flotantes(deck, sets) {
       if (!cur || !W) return;
       const tau = t - t0, lado = LADO * u, d = LADO / 2 / RADIO / Math.tan(FOV * Math.PI / 360);
       r.setScissorTest(false); r.clear(); r.setScissorTest(true);
+      let detecta = 0;   // de 0 a 1, qué tan recién detectó el sensor (lo regresa su fx): con eso parpadea el NodeMCU
       cur.piezas.forEach((p, i) => {
         const k = fijo ? 1 : sale((tau - ENTRA - i * CADA) / DURA), s = slots[i], g = p.g;
         if (k <= 0) return;
@@ -86,7 +89,7 @@ export function flotantes(deck, sets) {
         g.scale.setScalar(p.k * k);
         g.position.y = fijo ? 0 : .05 * Math.sin(t * 1.1 + i * 2) - .5 * (1 - k);
         g.rotation.set(fijo ? 0 : .09 * Math.sin(t * .7 + i), (fijo ? p.giro ?? .6 : t * .3 + i * 2.1) - 1.6 * (1 - k), fijo ? 0 : .07 * Math.cos(t * .5 + i * 1.7));
-        if (p.fx && f) p.fx(f, t);
+        if (p.fx && f) { const d = p.fx(f, t, detecta); if (i === 0) detecta = d || 0; }
         // la cámara mira el plato desde arriba; cada pieza con la altura que mejor la enseña
         cam.position.set(0, d * Math.sin(p.alto), d * Math.cos(p.alto)); cam.lookAt(0, 0, 0);
         const vx = s.x - x0 - lado / 2, vy = H - (s.y - y0) - lado / 2;

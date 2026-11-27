@@ -35,13 +35,19 @@ html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
 
 /* ---------- slides ---------- */
 .slide { position: absolute; inset: 0; visibility: hidden; opacity: 0; pointer-events: none; }
-.slide.on { visibility: visible; opacity: 1; }
+.slide.on, .slide.pre { visibility: visible; opacity: 1; }
 .slide.out { visibility: visible; opacity: 0; transition: opacity .42s ease; }
 .col { position: absolute; left: calc(120 * var(--u)); top: 52%; transform: translateY(-50%); width: calc(700 * var(--u)); }
 .slide.on a { pointer-events: auto; }
 /* slides sin maqueta: título arriba y el contenido a todo lo ancho */
 .tope { position: absolute; left: calc(120 * var(--u)); top: calc(150 * var(--u)); }
 .brillo::before { content: ""; position: absolute; inset: 0; background: radial-gradient(58% 60% at 74% 40%, rgba(70, 128, 255, .22), transparent 72%), radial-gradient(40% 46% at 12% 92%, rgba(38, 125, 192, .16), transparent 70%); }
+
+/* título previo de una slide (data-antes): sale solo, al centro, y se va cuando empieza la animación */
+.antes { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; opacity: 0; transition: opacity .35s ease; }
+.antes h2 { font-size: calc(128 * var(--u)); }
+.slide.pre .antes { opacity: 1; }
+.slide.pre .antes .ln > span { transform: none; transition: transform 1.2s cubic-bezier(.16, 1, .3, 1) calc(.5s + var(--d, 0s)); }
 
 /* entrada: cada bloque sube un poco y aparece, con su retraso (--d) */
 [data-a] { opacity: 0; transform: translateY(calc(22 * var(--u))); transition: opacity .3s ease, transform .3s ease; }

@@ -30,3 +30,6 @@ Frases fijas: "Esperar ya no es un riesgo." (lema) y "Un paradero inteligente, s
 - La maqueta nunca aparece armada por primera vez: llega separada por capas y se junta (portada y "la solución").
 - De azul a madera las dos escenas comparten cámara y la de madera entra con un barrido suave.
 - Las gráficas y las cotas se dibujan; los números cuentan.
+- La situación abre a oscuras con una sola frase al centro ("Quiero que se imaginen esta situación.") y la animación empieza con el siguiente avance.
+- En cada nodo, el sensor suelta ondas en el instante en que detecta, el LED del NodeMCU parpadea y el actuador responde, todo al mismo tiempo que la maqueta. Iluminación anochece una sola vez; los demás nodos se repiten.
+- Los datos viajan: los cinco NodeMCU flotan alrededor de la maqueta y mandan sus paquetes a una nube con la base de datos SQL.

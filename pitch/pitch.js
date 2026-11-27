@@ -3,6 +3,7 @@
 // qué slide va, se mueve el tiempo de ambas escenas y se pasa de un look al otro.
 //   →, espacio, clic: siguiente    ←: anterior    F: pantalla completa    T: cronómetro de la parte    R: volver a empezar
 //   La portada abre solo con el logo: el primer "siguiente" saca los textos y arma la maqueta, el segundo pasa a la slide 2.
+//   La slide 2 abre con su frase (data-antes) y la animación empieza con el siguiente "siguiente".
 //   /pitch/#7 abre en la slide 7   |   /pitch/?fijo#7 la deja quieta en su cuadro final (así se saca el PDF: pitch/exportar.mjs)
 import '@fontsource-variable/inter';
 import '@fontsource-variable/inter-tight';
@@ -205,22 +206,24 @@ function tick(ms) {
 const partes = [...document.querySelectorAll('#partes li')], inicio = {};
 // la portada espera con el logo al centro (pendiente); al abrirse, el logo pasa a su lugar y la maqueta se arma
 const portada = slides[0], logo0 = portada.querySelector('.logo');
+let previa = false;   // la slide está en su título previo (data-antes) y espera el siguiente "siguiente" para empezar
 let pendiente = idx === 0 && !FIJO, abiertaEn = null;   // abiertaEn: cuándo se abrió la portada, mientras se siga en ella
 const centra = () => portada.style.setProperty('--cx', (deck.clientWidth / 2 - portada.querySelector('.col').offsetLeft - 1.14 * logo0.offsetWidth / 2).toFixed(1) + 'px');   // 1.14: la escala del logo solo (pitch.css)
 addEventListener('resize', centra);
 function show(i, instant = false) {
   i = Math.max(0, Math.min(slides.length - 1, i));
   const s = slides[i], prev = slides[idx];
-  if (prev !== s) { prev.classList.remove('on'); prev.classList.add('out'); setTimeout(() => prev.classList.remove('out'), 450); }
+  if (prev !== s) { prev.classList.remove('on', 'pre'); prev.classList.add('out'); setTimeout(() => prev.classList.remove('out'), 450); }
   idx = i;
   if (i > 0) { pendiente = false; abiertaEn = null; }
   portada.classList.toggle('abierta', !pendiente);
-  s.classList.remove('out'); s.classList.add('on');
+  previa = !FIJO && !!s.dataset.antes;
+  s.classList.remove('out'); s.classList.toggle('pre', previa); s.classList.toggle('on', !previa);
   lookTo = s.dataset.look === 'madera' ? 1 : 0;
   if (instant || FIJO) lookK = lookTo;
   const t = FIJO ? 0 : now();
   tSlide = t;
-  for (const f of [fA, fM]) { const a = api(f); if (a) a.go(s.dataset.pose || s.dataset.id, t, instant); }
+  for (const f of [fA, fM]) { const a = api(f); if (a) a.go(previa ? s.dataset.antes : s.dataset.pose || s.dataset.id, t, instant); }
   if (flota) flota.show(s.dataset.id, t, instant || FIJO);
   const part = s.dataset.part;
   if (!(part in inicio) && (part !== 'pitch' || i > 0)) inicio[part] = now();
@@ -235,6 +238,11 @@ function show(i, instant = false) {
 
 // siguiente: en la portada, la primera vez la abre en vez de cambiar de slide
 function avanza() {
+  if (previa) {   // el título previo se va y la slide empieza de cero
+    const s = slides[idx]; previa = false; s.classList.remove('pre'); s.classList.add('on'); tSlide = now();
+    for (const f of [fA, fM]) { const a = api(f); if (a) a.go(s.dataset.pose || s.dataset.id, tSlide); }
+    return;
+  }
   if (idx !== 0 || !pendiente) return show(idx + 1);
   pendiente = false; abiertaEn = now(); portada.classList.add('abierta'); deck.classList.remove('sin-pie');
   const a = api(fA); if (a) a.entrada(abiertaEn);   // si la escena aún no carga, toma este mismo instante en cuanto esté

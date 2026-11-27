@@ -10,7 +10,7 @@
   <!-- Presentación final (Etapa 5): pitch de ventas, maqueta y dashboard.
        Flechas o espacio para avanzar, F pantalla completa, T cronómetro, R volver a empezar.
        Los textos siguen pitch/MARCA.md; los datos de los nodos están en pitch.js. -->
-  <div id="deck">
+  <div id="deck" class="sin-marca sin-pie">
     <iframe id="f-azul" title="Maqueta 3D, versión azul" tabindex="-1"></iframe>
     <iframe id="f-madera" title="Maqueta 3D, versión de madera" tabindex="-1"></iframe>
     <div class="velo"></div>
@@ -29,7 +29,9 @@
 
     <!-- la situación: quien presenta la cuenta mientras la estudiante camina a la parada, la seguridad baja a cero y ella sigue esperando.
          Los tiempos (data-a, --t0) siguen el guion de chica.js; los escalones del medidor están en pitch.js -->
-    <section class="slide" data-id="situacion" data-part="pitch" data-shot="24">
+    <section class="slide" data-id="situacion" data-antes="imagina" data-part="pitch" data-shot="24">
+      <!-- antes de la animación: solo esta frase, hasta el siguiente "siguiente" -->
+      <div class="antes"><h2 data-lines data-d=".3">Quiero que se imaginen|esta situación.</h2></div>
       <div class="col relato">
         <ol class="linea">
           <li data-a=".5" style="--t0:1.1s;--dt:5.3s"><time>10:00 p.m.</time><b>Sales de clases</b><span>15 minutos a pie</span></li>
@@ -137,8 +139,9 @@
       <div class="puntos" id="puntos"></div>
     </section>
 
-    <!-- cada integrante presenta su nodo: la animación del pitch, repitiéndose de fondo, y el camino del sensor al actuador -->
-    <section class="slide nodo demo" data-id="m-luz" data-pose="d-luz" data-node="1" data-part="maqueta" data-shot="7"></section>
+    <!-- cada integrante presenta su nodo: la animación del pitch, repitiéndose de fondo (menos Iluminación, que anochece una sola vez),
+         y el camino del sensor al actuador con sus componentes flotando -->
+    <section class="slide nodo demo" data-id="m-luz" data-pose="luz" data-node="1" data-part="maqueta" data-shot="7"></section>
     <section class="slide nodo demo" data-id="m-sos" data-pose="sos" data-node="2" data-part="maqueta" data-shot="2.55"></section>
     <section class="slide nodo demo" data-id="m-acceso" data-pose="acceso" data-node="3" data-part="maqueta" data-shot="3.9"></section>
     <section class="slide nodo demo" data-id="m-ruta" data-pose="d-ruta" data-node="4" data-part="maqueta" data-shot="8.6"></section>

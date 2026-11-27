@@ -6,6 +6,7 @@ import { ANCHORS, CAD, EX, exK as avance } from '../src/scene.js';
 import { paradaFea, farol } from './parada.js';
 import { G, girlAt } from './chica.js';
 import { nodemcu } from './nodemcu.js';
+import { nube } from './nube.js';
 import { KEYPAD_TOP } from '../src/detail.js';
 import { CODE } from '../video/guion.js';
 
@@ -26,14 +27,16 @@ const TRAVEL = 1.7;                   // lo que dura el viaje entre dos slides
 const EX_0 = .8;                      // qué tan separada aparece la maqueta antes de armarse (1 = vista explotada completa)
 
 // valores que se mezclan al cambiar de slide
-const NUM = ['night', 'lamp', 'door', 'bars', 'oled', 'lift', 'explode', 'xray', 'hlSos', 'hlDoor', 'hlBars', 'sway', 'velo', 'out', 'feo', 'ex', 'vis', 'foco', 'mcu'];
-const BASE = { cam: 'lado', cam2: null, camK: 0, ang: 0, zoom: 1, night: 0, lamp: 0, door: 0, bars: 0, oled: 0, lift: 0, explode: 0, xray: 0, hlSos: 0, hlDoor: 0, hlBars: 0, sway: .05, velo: 0, out: 0, feo: 0, ex: 0, vis: 1, foco: 0, mcu: 0, busOut: 0, girlT: null, busT: null, sosT: null, keysT: null };
+const NUM = ['night', 'lamp', 'door', 'bars', 'oled', 'lift', 'explode', 'xray', 'hlSos', 'hlDoor', 'hlBars', 'sway', 'velo', 'out', 'feo', 'ex', 'vis', 'foco', 'mcu', 'negro', 'nube'];
+const BASE = { cam: 'lado', cam2: null, camK: 0, ang: 0, zoom: 1, night: 0, lamp: 0, door: 0, bars: 0, oled: 0, lift: 0, explode: 0, xray: 0, hlSos: 0, hlDoor: 0, hlBars: 0, sway: .05, velo: 0, out: 0, feo: 0, ex: 0, vis: 1, foco: 0, mcu: 0, negro: 0, nube: 0, busOut: 0, girlT: null, busT: null, sosT: null, keysT: null };
 
 // una pose por slide (t = segundos desde que entró la slide)
 const POSES = {
   portada: () => ({}),
   // la situación: de noche, una estudiante camina sola a la parada, se detiene y espera viendo el celular (girlT mueve todo)
   // feo: en vez de la caseta de SafeWait se ve la parada de hoy (banca, poste, farol que falla, basura)
+  // antes de la situación: la pantalla a oscuras con solo la frase de pitch.js (negro); ella espera en su primer cuadro
+  imagina: () => ({ night: 1.09, sway: .012, girlT: 0, feo: 1, negro: 1 }),
   situacion: t => ({ night: 1.09, sway: .012, girlT: t, feo: 1 }),   // night > 1: más oscuro que las demás slides de noche
   // datos y personas: la maqueta se hace a un lado (out) y deja toda la pantalla
   cifras: () => ({ night: 1, out: 1, ang: -.1, feo: 1 }),
@@ -54,16 +57,16 @@ const POSES = {
   escala: t => ({ cam: 'lado', cam2: 'ladoB', camK: sm(t, .2, 2.4), ang: -.12 * sm(t, .2, 2.4) }),
   mdf: () => ({ cam: 'abiertoB', explode: 1, sway: .04 }),
   // las piezas impresas: sigue separada, la cámara se acerca, todo lo demás se desenfoca y pierde el color (foco),
-  // y los barrotes suben y bajan
-  impresas: t => ({ cam: 'impresas', explode: 1, sway: .03, foco: 1, bars: hold(ciclo(t - 2.2, 7), 0, 2.2, 3.6, 5.8) * sm(t, 2.2, 2.4) }),
+  // y los barrotes y las esquinas del techo se ven más grandes de lo que son (GRANDE)
+  impresas: () => ({ cam: 'impresas', explode: 1, sway: .03, foco: 1 }),
   // la base se vuelve translúcida y cinco NodeMCU orbitan la maqueta (mcu)
   oculto: () => ({ cam: 'ladoB', zoom: 1.2, xray: 1, ang: .16, sway: .04, mcu: 1 }),
   distribucion: () => ({ cam: 'altoB', lift: 1, sway: .03 }),
-  flujo: () => ({ ang: .2 }),
+  // los cinco NodeMCU flotan alrededor de la maqueta y mandan sus datos a la nube, que aparece arriba (nube)
+  flujo: () => ({ cam: 'nube', ang: .2, sway: .04, mcu: 1, nube: 1 }),
   dashboard: () => ({ ang: .08 }),
   // en la parte de maqueta cada nodo es el fondo de quien lo presenta: su animación se repite hasta que cambie la slide
-  // (SOS y Acceso ya se repiten solos)
-  'd-luz': t => { const p = ciclo(t, 10.2); return { cam: 'light', lift: 1, night: hold(p, 1.7, 3.2, 7.6, 9.3), lamp: hold(p, 2.8, 4.4, 7.2, 8.7) }; },
+  // (SOS y Acceso ya se repiten solos; Iluminación no se repite, usa la pose luz: pasar de claro a oscuro una y otra vez distrae)
   // (el velo vuelve cuando el camión se va: sale por el lado del texto y así se pierde en el fondo en vez de cruzarlo)
   'd-ruta': t => { const p = ciclo(t, 14.6), k = hold(p, 5.2, 6.5, 9.8, 11.1); return { cam: 'routeD', cam2: 'oled', camK: k, velo: Math.max(k, hold(p, 12.2, 13.1, 14, 14.6)), lift: 1, busT: p - .9, busOut: ramp(p, 11.5, 14), oled: hold(p, 4.5, 4.9, 11.2, 11.6) }; },
   'd-barrotes': t => { const p = ciclo(t, 13.6), k = hold(p, 1.0, 2.5, 5.3, 6.9); return { cam: 'bars', cam2: 'keypad', camK: k, velo: k, hlBars: sm(t, .6, 1.6), keysT: p - 2.9, bars: hold(p, 6.1, 8.3, 10.4, 12.7) }; },
@@ -111,6 +114,8 @@ export function setupPitch(c) {
       altoB: c.fit({ cx: W * .71, cy: H * .38, w: W * .38, h: H * .5 }, W, H, .8),
       abiertoB: c.fit({ cx: W * .7, cy: H * .6, w: W * .31, h: H * .33 }, W, H, .42),
       impresas: c.fit({ cx: W * .69, cy: H * .6, w: W * .36, h: H * .36 }, W, H, .34),
+      // más chica y abajo, para que arriba quepa la nube
+      nube: c.fit({ cx: W * .7, cy: H * .7, w: W * .4, h: H * .42 }, W, H),
       light: right(L[1][2], .18, 1.22), sos: right(L[2][2], .19, 1.42), door: right(L[3][2], .2, 1.3), route: right(L[4][2], .18, 1.28),
       // Ruta con sus componentes flotando a la izquierda: la maqueta un poco más chica y más a la derecha, para no quedar debajo de ellos
       routeD: right(L[4][2], .235, 1.42),
@@ -141,9 +146,23 @@ export function setupPitch(c) {
   const SIGUE = [[0, EX.floor, 0], [0, EX.walk, 0], [0, EX.lid + 4, 0], [0, EX.wall, -3]];
   const caseta = [];
   // piezas impresas en 3D (barrotes con su cremallera, esquinas del techo y polea) y todo lo que no lo es
-  const IMPRESA = new Set(['corner', 'hl_bars_bars', 'pulley']), noImp = [];
-  { const es = o => { for (let q = o; q; q = q.parent) if (q.userData && IMPRESA.has(q.userData.cls)) return true; return false; };
-    stage.root.traverse(o => { if ((o.isMesh || o.isLine) && !es(o)) noImp.push(o); }); }
+  const IMPRESA = new Set(['corner', 'hl_bars_bars']), noImp = [], imp = [];
+  { const es = o => { for (let q = o; q; q = q.parent) if (q.userData && IMPRESA.has(q.userData.cls)) return q.userData.cls; return null; };
+    stage.root.traverse(o => { if (!o.isMesh && !o.isLine) return; const c = es(o); if (!c) noImp.push(o); else if (o.isMesh) imp.push({ o, cls: c }); }); }
+  // en esa slide se ven más grandes de lo que son: cada grupo (los barrotes de un lado, las dos esquinas de un lado) crece desde su centro.
+  // Se hace sobre la matriz ya calculada, justo al dibujar, así no estorba a la vista separada ni al movimiento de los barrotes
+  const GRANDE = 2;
+  let grandeK = 1;
+  { stage.root.updateMatrixWorld(true);
+    const c0 = m => { m.o.geometry.computeBoundingBox(); return m.o.geometry.boundingBox.getCenter(V(0, 0, 0)).applyMatrix4(m.o.matrixWorld); };
+    const cs = imp.map(c0), media = (cls, k) => { const l = cs.filter((_, i) => imp[i].cls === cls); return l.reduce((a, p) => a + p[k], 0) / (l.length || 1); };
+    imp.forEach((m, i) => { const mx = media(m.cls, 'x'); m.g = m.cls + (cs[i].x > mx); m.c = m.o.geometry.boundingBox.getCenter(V(0, 0, 0)); }); }
+  const gc = {}, gm = new THREE.Matrix4(), gv = V(0, 0, 0);
+  function agranda() {
+    for (const k in gc) gc[k].n = 0;
+    for (const m of imp) { const g = gc[m.g] ||= { p: V(0, 0, 0), n: 0 }; if (!g.n) g.p.set(0, 0, 0); g.p.add(gv.copy(m.c).applyMatrix4(m.o.matrixWorld)); g.n++; }
+    for (const m of imp) { const g = gc[m.g]; gv.copy(g.p).divideScalar(g.n); gm.makeScale(grandeK, grandeK, grandeK).setPosition(gv.x * (1 - grandeK), gv.y * (1 - grandeK), gv.z * (1 - grandeK)); m.o.matrixWorld.premultiply(gm); }
+  }
   // su copia nítida va en un lienzo aparte, encima del de la escena (que se desenfoca)
   const fc = document.createElement('canvas'), fg = fc.getContext('2d');
   fc.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;pointer-events:none;opacity:0';
@@ -152,9 +171,11 @@ export function setupPitch(c) {
   const orbita = new THREE.Group(); orbita.visible = false; stage.root.add(orbita);
   const placas = [0, 1, 2, 3, 4].map(() => { const o = nodemcu(); o.scale.setScalar(3.1); orbita.add(o); return o; });
   for (const o of placas) o.traverse(q => { if (q.isMesh) noImp.push(q); });
+  // la nube con la base de datos, y lo que le manda cada placa (slide "Cómo viajan los datos")
+  const NUBE = nube(placas.length), NUBE_EN = V(-6, 66, -9); stage.root.add(NUBE.g, NUBE.aire);
   { // la caseta se esconde justo al dibujar y se restaura al terminar, para no pelear con lo que la escena decide en cada cuadro
     const antes = stage.scene.onBeforeRender, despues = stage.scene.onAfterRender;
-    stage.scene.onBeforeRender = function () { antes.apply(this, arguments); const lista = soloImp ? noImp : feoOn ? caseta : null; if (lista) { for (const o of lista) { o.userData.vis = o.visible; o.visible = false; } ocultos = lista; } };
+    stage.scene.onBeforeRender = function () { antes.apply(this, arguments); if (grandeK > 1.001) agranda(); const lista = soloImp ? noImp : feoOn ? caseta : null; if (lista) { for (const o of lista) { o.userData.vis = o.visible; o.visible = false; } ocultos = lista; } };
     stage.scene.onAfterRender = function () { if (despues) despues.apply(this, arguments); if (ocultos) { for (const o of ocultos) o.visible = o.userData.vis; ocultos = null; } };
   }
   const listo = CON_BASE ? Promise.resolve() : import('../video/personas.js').then(async m => {
@@ -190,6 +211,7 @@ export function setupPitch(c) {
     }
     const e = dur ? ease(clamp(tau / dur)) : 1, cam = camOf(to), P = { busX: null, sosT: to.sosT, keysT: to.keysT };
     for (const k of NUM) P[k] = from && e < 1 ? from[k] + (to[k] - from[k]) * e : to[k];
+    if (to.negro >= 1 && !(from && from.calle && from.out < .5)) P.negro = 1;   // hacia la frase a oscuras, la calle no se asoma
     if (raw.vis != null) { P.vis = raw.vis; P.solo = true; }   // la pose que esconde la maqueta manda: no se mezcla con la slide anterior
     else if (from && e < 1) {
       if (!from.calle && to.out >= 1) P.solo = true;   // de la caseta a una slide de datos (hacia atrás): la calle no se asoma
@@ -321,7 +343,7 @@ export function setupPitch(c) {
     }
     // en las slides de datos y personas la escena de la calle no se va de lado: se desvanece
     // (la escena de madera no tiene calle: en esas slides no dibuja nada; y la calle no regresa mientras la solución espera en blanco)
-    el.gl.style.opacity = (sm(Math.abs(P.feo - .5) * 2, .2, 1) * (feoOn ? (P.solo ? 0 : 1 - clamp(P.out)) : fea ? vis : vis * (1 - sm(P.feo, 0, .5)))).toFixed(3);
+    el.gl.style.opacity = (sm(Math.abs(P.feo - .5) * 2, .2, 1) * (feoOn ? (P.solo ? 0 : (1 - clamp(P.out)) * (1 - clamp(P.negro))) : fea ? vis : vis * (1 - sm(P.feo, 0, .5)))).toFixed(3);
 
     // cámara, con un vaivén muy lento para que la imagen nunca quede congelada
     const cam = view.camera, a = fijo ? 0 : P.sway * Math.sin(now * .42);
@@ -333,11 +355,13 @@ export function setupPitch(c) {
     orbita.visible = P.mcu > .01;
     if (orbita.visible) placas.forEach((o, i) => {
       const a = i * Math.PI * .4 + (fijo ? .5 : now * .32), k = smooth(clamp(P.mcu * 1.6 - i * .15));
-      o.position.set(Math.sin(a) * 43 * k, 9 + 5 * Math.cos(a) + 1.2 * Math.sin(now * 1.1 + i * 2) + 26 * (1 - k), -7.7 + Math.cos(a) * 35 * k);
+      o.position.set(Math.sin(a) * 43 * k, 9 + 9 * P.nube + 5 * Math.cos(a) + 1.2 * Math.sin(now * 1.1 + i * 2) + 26 * (1 - k), -7.7 + Math.cos(a) * 35 * k);
       o.rotation.set(.5 + .2 * Math.sin(now * .7 + i), a * 1.5 + i, .25 * Math.cos(now * .5 + i * 1.7)); o.scale.setScalar(3.1 * k + .001);
     });
+    NUBE.update(fijo ? 3.3 : now, P.mcu > .01 ? clamp(P.nube) : 0, NUBE_EN, placas, cam);
     // foco: primero solo las piezas impresas, que se copian nítidas a su lienzo; luego la escena completa, que se desenfoca
     const foco = P.foco > .01;
+    grandeK = 1 + (GRANDE - 1) * smooth(clamp(P.foco));
     if (foco) {
       soloImp = true; stage.render(now, 0); soloImp = false;
       if (fc.width !== el.gl.width || fc.height !== el.gl.height) { fc.width = el.gl.width; fc.height = el.gl.height; }

@@ -1,6 +1,8 @@
 // Los sensores y actuadores de los cinco nodos, hechos con cajas y cilindros a su tamaño real en centímetros (como nodemcu.js).
 // Cada función regresa un grupo acostado sobre una mesa (Y hacia arriba), centrado en el origen. Si la pieza hace algo cuando
 // su nodo trabaja en la maqueta, lo expone en userData.fx(f, t): f trae el estado de la escena (escena.js lo regresa en render).
+// Va al mismo tiempo que la maqueta: el sensor suelta ondas en el instante en que detecta y el actuador se mueve con el suyo.
+// El fx de un sensor regresa de 0 a 1 qué tan recién detectó, y con eso parpadea el LED del NodeMCU (flotan.js).
 import * as THREE from 'three';
 
 const std = o => new THREE.MeshStandardMaterial(o);
@@ -14,6 +16,9 @@ function lienzo(w, h, draw) {
   return t;
 }
 const rr = (g, x, y, w, h, r) => { g.beginPath(); g.roundRect(x, y, w, h, r); };
+// segundos desde la última vez que una señal subió de su umbral (el momento en que el sensor detecta)
+const flanco = (umbral = .02) => { let antes = 0, t0 = -99; return (v, t) => { if (v > umbral && antes <= umbral) t0 = t; antes = v; return t - t0; }; };
+const reciente = dt => clamp(1 - dt / .7) * clamp(dt * 20 + .2);
 
 let K = null;
 function comunes() {
@@ -25,6 +30,7 @@ function comunes() {
     plata: std({ color: 0xc8ccd2, roughness: .28, metalness: .85 }), oro: std({ color: 0xd9b24a, roughness: .35, metalness: .8 }), cobre: std({ color: 0xc98a4b, roughness: .4, metalness: .7 }),
     azul: std({ color: 0x1759b0, roughness: .5 }), gris: std({ color: 0x8b9099, roughness: .6 }),
     caja: new THREE.BoxGeometry(1, 1, 1), cil: new THREE.CylinderGeometry(1, 1, 1, 40), plano: new THREE.PlaneGeometry(1, 1), halo,
+    aro: lienzo(128, 128, c => { c.strokeStyle = '#fff'; c.lineWidth = 7; c.beginPath(); c.arc(64, 64, 56, 0, 7); c.stroke(); }),
   };
   return K;
 }
@@ -37,6 +43,16 @@ function pieza() {
     caja: (m, w, h, d, x, y, z) => { const o = new THREE.Mesh(M.caja, m); o.scale.set(w, h, d); return pon(o, x, y, z); },
     cil: (m, r, h, x, y, z, r2 = r) => { const o = new THREE.Mesh(M.cil, m); o.scale.set(r, h, r2); return pon(o, x, y, z); },
     // luz de un LED: un disco acostado que suma su color (se apaga con opacity 0)
+    // ondas: n aros acostados que crecen de r0 a r1 y se desvanecen, uno cada `cada` segundos. Regresa play(dt, opciones),
+    // con dt = segundos desde que salió la primera
+    ondas: (color, n = 2) => {
+      const os = Array.from({ length: n }, () => { const o = new THREE.Mesh(M.plano, new THREE.MeshBasicMaterial({ map: M.aro, color, transparent: true, opacity: 0, depthWrite: false })); o.rotation.x = -Math.PI / 2; g.add(o); return o; });
+      return (dt, { x = 0, y = 0, z = 0, r0, r1, dur = 1, cada = .18, a = .95 }) => os.forEach((o, i) => {
+        const p = (dt - i * cada) / dur, on = p > 0 && p < 1;
+        o.material.opacity = on ? a * Math.min(1, p * 6) * (1 - p) : 0;
+        if (on) { o.scale.setScalar(2 * (r0 + (r1 - r0) * (1 - (1 - p) * (1 - p)))); o.position.set(x, y, z); }
+      });
+    },
     halo: (color, r, x, y, z) => { const o = new THREE.Mesh(M.plano, new THREE.MeshBasicMaterial({ map: M.halo, color, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false })); o.rotation.x = -Math.PI / 2; o.scale.setScalar(r * 2); o.position.set(x, y, z); g.add(o); return o; },
   };
 }
@@ -46,7 +62,7 @@ const tapa = (lado, cara) => [lado, lado, cara, lado, lado, lado];
 /* ---------- 01 Iluminación ---------- */
 // fotorresistencia LDR de 5 mm (GL5528): pastilla de cerámica con la pista de sulfuro de cadmio en zigzag entre dos electrodos, y dos patas
 export function ldr() {
-  const { g, M, cil } = pieza();
+  const { g, M, cil, ondas } = pieza();
   const cara = lienzo(256, 256, (c, w) => {
     c.fillStyle = '#e9e1cf'; c.fillRect(0, 0, w, w);
     c.save(); c.beginPath(); c.arc(128, 128, 108, 0, 7); c.clip();
@@ -61,7 +77,9 @@ export function ldr() {
   cabeza.scale.set(.255, .2, .225); cabeza.position.y = .1; cabeza.castShadow = true; g.add(cabeza);
   cil(std({ color: 0xffffff, roughness: .08, transparent: true, opacity: .22 }), .245, .035, 0, .215, 0, .215);   // la gota de resina que la cubre
   for (const x of [-.17, .17]) cil(M.plata, .022, .95, x, -.475, 0);
-  g.userData = { centro: [0, -.2, 0], radio: .6, alto: 62, giro: .4 };
+  // cuando oscurece en la maqueta, detecta: suelta sus ondas justo antes de que encienda la tira
+  const onda = ondas(0x8fc4ff, 2), oscurece = flanco(.5);
+  g.userData = { centro: [0, -.2, 0], radio: .6, alto: 62, giro: .4, fx: (f, t) => { const dt = oscurece(f.night, t); onda(dt, { y: .26, r0: .22, r1: .8, dur: 1.1 }); return reciente(dt); } };
   return g;
 }
 
@@ -120,7 +138,7 @@ const barreno = (c, x, y, r) => { c.fillStyle = '#d9b24a'; c.beginPath(); c.arc(
 /* ---------- 02 SOS ---------- */
 // sensor de fuerza FSR 402: película redonda de 18 mm con los dos peines de plata entrelazados, y su cola con dos pistas
 export function fsr() {
-  const { g, M, caja } = pieza();
+  const { g, M, caja, ondas } = pieza();
   const cara = lienzo(256, 256, c => {
     c.fillStyle = '#24261f'; c.fillRect(0, 0, 256, 256);
     c.strokeStyle = '#3a3d33'; c.lineWidth = 6; c.beginPath(); c.arc(128, 128, 120, 0, 7); c.stroke();
@@ -138,14 +156,19 @@ export function fsr() {
   const cabeza = new THREE.Mesh(M.cil, [film, top, film]); cabeza.scale.set(.915, .045, .915); cabeza.castShadow = true; g.add(cabeza);
   caja(film, 3.9, .045, .63, 2.7, 0, 0);
   for (const z of [-.14, .14]) { caja(M.plata, 3.95, .012, .075, 2.72, .028, z); caja(M.plata, .5, .03, .16, 4.86, 0, z); caja(M.plata, .22, .07, .22, 4.55, 0, z); }
-  // al presionarlo en la maqueta se hunde un poco y se ilumina
-  g.userData = { alto: 56, radio: 2.45, giro: .75, centro: [1.75, 0, 0], fx: f => { top.emissiveIntensity = .55 * f.pad; cabeza.position.y = -.12 * f.pad; } };
+  // cuando se presiona el botón de la maqueta se hunde, se ilumina y suelta las mismas ondas blancas que ella
+  const onda = ondas(0xffffff, 2);
+  g.userData = { alto: 56, radio: 2.45, giro: .75, centro: [1.75, 0, 0], fx: f => {
+    top.emissiveIntensity = 1.1 * f.pad; cabeza.position.y = -.16 * f.pad;
+    onda(f.sos - .04, { y: .06, r0: .7, r1: 2.3, dur: 1, cada: .17 });
+    return f.sos >= 0 ? reciente(f.sos) : 0;
+  } };
   return g;
 }
 
 // buzzer activo de 5 V: cilindro negro de 12 mm con su orificio arriba y dos patas; mientras suena la alarma vibra y suelta ondas
 export function buzzer() {
-  const { g, M, cil } = pieza();
+  const { g, M, cil, ondas } = pieza();
   const cara = lienzo(256, 256, c => {
     c.fillStyle = '#17191e'; c.fillRect(0, 0, 256, 256);
     c.strokeStyle = '#2b2e36'; c.lineWidth = 5; c.beginPath(); c.arc(128, 128, 104, 0, 7); c.stroke();
@@ -157,12 +180,12 @@ export function buzzer() {
   const m = (geo, mat, r, h, y) => { const o = new THREE.Mesh(geo, mat); o.scale.set(r, h, r); o.position.y = y; o.castShadow = true; cuerpo.add(o); };
   m(M.cil, M.negro, .6, .88, .44); m(M.cil, [M.negro, std({ map: cara, roughness: .45 }), M.negro], .57, .08, .92); m(M.cil, M.mate, .54, .03, -.01);
   cil(M.plata, .03, .62, -.38, -.31, 0); cil(M.plata, .03, .78, .38, -.39, 0);
-  const aro = lienzo(128, 128, c => { c.strokeStyle = '#fff'; c.lineWidth = 7; c.beginPath(); c.arc(64, 64, 56, 0, 7); c.stroke(); });
-  const ondas = [0, 1, 2].map(() => { const o = new THREE.Mesh(M.plano, new THREE.MeshBasicMaterial({ map: aro, color: 0xff6b5e, transparent: true, opacity: 0, depthWrite: false })); o.rotation.x = -Math.PI / 2; g.add(o); return o; });
+  // suena con la alarma de la maqueta: las mismas tres ondas rojas, en su mismo instante, y vibra mientras duran
+  const onda = ondas(0xff5a4e, 3);
   g.userData = { alto: 34, radio: 1.12, centro: [0, .3, 0], fx: (f, t) => {
-    const on = f.sos > .06 && f.sos < 2.05;
-    cuerpo.position.x = on ? .018 * Math.sin(t * 95) : 0;
-    ondas.forEach((o, i) => { const p = on ? ((f.sos - .06) / .66 + i / 3) % 1 : 0; o.material.opacity = on ? .85 * Math.sin(Math.PI * p) * (1 - p) * 1.6 : 0; o.scale.setScalar(.5 + 2 * p); o.position.y = 1 + .55 * p; });
+    const on = f.sos > .3 && f.sos < 2.15;
+    cuerpo.position.x = on ? .02 * Math.sin(t * 95) : 0;
+    onda(f.sos - .3, { y: 1.02, r0: .45, r1: 1.75, dur: 1.5, cada: .2 });
   } };
   return g;
 }
@@ -190,8 +213,13 @@ export function rfid() {
   const led = std({ color: 0x7a1512, roughness: .4, emissive: 0xff2a1f, emissiveIntensity: 0 });
   caja(led, .16, .09, .1, -2.05, .125, 1.6); const luz = P.halo(0xff4a3c, .5, -2.05, .2, 1.6);
   pines(P, 8, -2.68, 0, true);
-  // la tarjeta autorizada enciende su LED
-  g.userData = { alto: 52, radio: 3.4, giro: -.4, fx: f => { const k = clamp(f.door * 4); led.emissiveIntensity = 2.2 * k; luz.material.opacity = .9 * k; } };
+  // cuando la puerta de la maqueta empieza a abrir es que leyó la tarjeta: salen ondas de su antena y enciende su LED
+  const onda = P.ondas(0x162660, 3), lee = flanco();   // marino: se ve sobre la tarjeta azul y sobre el fondo claro
+  g.userData = { alto: 52, radio: 3.4, giro: -.4, fx: (f, t) => {
+    const k = clamp(f.door * 4), dt = lee(f.door, t); led.emissiveIntensity = 2.2 * k; luz.material.opacity = .9 * k;
+    onda(dt, { x: 1, y: .12, r0: .5, r1: 2.6, dur: 1.1 });
+    return reciente(dt);
+  } };
   return g;
 }
 // servomotor MG90S: caja de 23 x 12 x 28 mm con sus orejas, la torre del engrane, el eje dorado, su brazo blanco y el cable
@@ -207,7 +235,7 @@ export function servo() {
     c.font = `600 17px ${SANS}`; c.fillText('Micro Servo', 114, 118);
   });
   caja([cuerpo, cuerpo, cuerpo, cuerpo, std({ map: etiqueta, roughness: .42 }), cuerpo], 2.28, 2.25, 1.22, 0, 1.125, 0);
-  caja(cuerpo, 3.23, .25, 1.22, 0, 1.78, 0);
+  caja(cuerpo, 3.23, .25, 1.16, 0, 1.78, 0);   // un poco más angostas que el cuerpo: si no, sus caras se pelean con la etiqueta
   for (const x of [-1.39, 1.39]) cil(std({ color: 0x08090b, roughness: .8 }), .11, .27, x, 1.78, 0);
   caja(tapaS, 2.28, .5, 1.22, 0, 2.5, 0);
   cil(tapaS, .59, .42, -.52, 2.96, 0); cil(tapaS, .3, .3, .42, 2.9, 0);
@@ -256,9 +284,16 @@ export function color() {
     halos.push(P.halo(0xdbe8ff, .8, x, .95, z));
     caja(M.mate, .2, .08, .1, x * .52, .12, z * 1.42);
   }
-  for (const o of halos) o.material.opacity = .6;
   pines(P, 5, -1.45, 0, true); pines(P, 5, 1.45, 0, true);
-  g.userData = { alto: 50, radio: 2.2, giro: .45 };
+  // cuando la pantalla de la maqueta muestra el color es que lo detectó: sus LED dan un destello y salen ondas del chip
+  const onda = P.ondas(0x162660, 2), detecta = flanco(.5);
+  g.userData = { alto: 50, radio: 2.2, giro: .45, fx: (f, t) => {
+    const dt = detecta(f.oled, t), k = reciente(dt);
+    for (const o of halos) o.material.opacity = .5 + .5 * k;
+    vidrio.emissiveIntensity = .9 + .9 * k;
+    onda(dt, { y: .26, r0: .35, r1: 1.9, dur: 1.1 });
+    return k;
+  } };
   return g;
 }
 
@@ -296,7 +331,7 @@ export function oled() {
 // La tecla que se oprime en la maqueta se enciende aquí también
 const TECLAS = [['1', '2', '3', 'A'], ['4', '5', '6', 'B'], ['7', '8', '9', 'C'], ['*', '0', '#', 'D']];
 export function teclado() {
-  const { g, M, caja } = pieza();
+  const { g, M, caja, ondas } = pieza();
   const w = 6.9, d = 7.7, mx = .72, top = .78, px = (w - 2 * mx) / 4, pz = (d - top - .98) / 4, S = 72;
   const cara = lienzo(Math.round(w * S), Math.round(d * S), (c, W, H) => {
     c.fillStyle = '#15161a'; c.fillRect(0, 0, W, H);
@@ -316,10 +351,13 @@ export function teclado() {
   caja(M.negro, 2.06, .26, 1.05, 0, -.02, d / 2 + 1.95);
   const luz = new THREE.Mesh(M.plano, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false }));
   luz.rotation.x = -Math.PI / 2; luz.scale.set(px * .8, pz * .78, 1); luz.position.y = .05; g.add(luz);
-  g.userData = { alto: 58, radio: 5.2, giro: .35, centro: [0, 0, .8], fx: f => {
+  const onda = ondas(0xffffff, 1), oprime = flanco(.01);
+  g.userData = { alto: 58, radio: 5.2, giro: .35, centro: [0, 0, .8], fx: (f, t) => {
+    const dt = oprime(f.tecla ? f.tecla[1] : 0, t);
     luz.material.opacity = 0;
-    if (!f.tecla) return;
-    for (let r = 0; r < 4; r++) { const k = TECLAS[r].indexOf(f.tecla[0]); if (k >= 0) { luz.position.x = -w / 2 + mx + (k + .5) * px; luz.position.z = -d / 2 + top + (r + .5) * pz; luz.material.opacity = .75 * f.tecla[1]; } }
+    if (f.tecla) for (let r = 0; r < 4; r++) { const k = TECLAS[r].indexOf(f.tecla[0]); if (k >= 0) { luz.position.x = -w / 2 + mx + (k + .5) * px; luz.position.z = -d / 2 + top + (r + .5) * pz; luz.material.opacity = .9 * f.tecla[1]; } }
+    onda(dt, { x: luz.position.x, y: .07, z: luz.position.z, r0: .5, r1: 2.1, dur: .6 });
+    return f.tecla ? f.tecla[1] : 0;
   } };
   return g;
 }
@@ -341,5 +379,14 @@ export function motor() {
   [0x2a63c9, 0xe58fb4, 0xf2cf3b, 0xf08a24, 0xd4332a].forEach((col, i) => { const o = new THREE.Mesh(M.cil, std({ color: col, roughness: .55 })); o.scale.set(.055, 1.7, .055); o.rotation.x = Math.PI / 2; o.position.set((i - 2) * .13, 0, -.85); cables.add(o); });
   { const o = new THREE.Mesh(M.caja, M.blanco); o.scale.set(1.3, .5, .62); o.position.set(0, 0, -1.95); o.castShadow = true; cables.add(o); }
   g.userData = { alto: 40, giro: 2.4, radio: 2.45, centro: [0, 1.1, -.5], fx: f => { eje.rotation.y = f.bars * Math.PI * 5; } };
+  return g;
+}
+
+// el LED azul del NodeMCU, que parpadea cuando su sensor detecta (flotan.js lo pone sobre la placa de nodemcu.js)
+export function ledMcu() {
+  const { g, M, caja, halo } = pieza();
+  const led = std({ color: 0x16335f, roughness: .4, emissive: 0x3d8bff, emissiveIntensity: 0 });
+  caja(led, .12, .07, .08, 0, 0, 0); const luz = halo(0x5aa2ff, .55, 0, .08, 0);
+  g.userData.fx = k => { led.emissiveIntensity = 3 * k; luz.material.opacity = k; };
   return g;
 }
