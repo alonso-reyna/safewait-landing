@@ -6,13 +6,14 @@ import * as THREE from 'three';
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
 const sm = (t, a, b) => { const k = clamp((t - a) / (b - a)); return k * k * (3 - 2 * k); };
 
-// el farol titila débil mientras ella camina y se apaga para siempre justo cuando llega
-export function farol(t) {
-  if (t > 8.7) return 0;
-  const n = Math.sin(t * 23.1) * Math.sin(t * 7.3 + 1.3) * Math.sin(t * 41.7 + .4);
-  let k = .34 + .2 * Math.sin(t * 3.1) + (n > .22 ? .45 : 0) - (Math.sin(t * 13.7) > .9 ? .5 : 0);
-  if (t > 7.5) k *= (Math.sin(t * 39) > -.2 ? 1 : .1) * (1 - sm(t, 7.5, 8.7));
-  return clamp(k);
+// el farol está apagado mientras ella camina (la calle a oscuras); en el segundo a, cuando se sienta, intenta prender,
+// titila un par de segundos y se apaga para siempre. u: segundos de la slide
+export function farol(u, a) {
+  const b = a + 2.4;
+  if (u < a || u > b) return 0;
+  const n = Math.sin(u * 23.1) * Math.sin(u * 7.3 + 1.3) * Math.sin(u * 41.7 + .4);
+  const k = .5 + .22 * Math.sin(u * 3.1) + (n > .2 ? .4 : 0) - (Math.sin(u * 13.7) > .88 ? .5 : 0);
+  return clamp(k * sm(u, a, a + .1) * (Math.sin(u * 39) > -.35 ? 1 : .12) * (1 - sm(u, b - .9, b)));
 }
 
 // y: altura de la banqueta; calle: altura del asfalto. Devuelve el grupo, la luz del farol y quiebra(k), que rompe el asiento de la banca.

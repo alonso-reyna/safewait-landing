@@ -98,7 +98,7 @@ h2.medio { font-size: calc(68 * var(--u)); }
 .lede { margin-top: calc(34 * var(--u)); max-width: calc(640 * var(--u)); font-size: calc(36 * var(--u)); line-height: 1.32; font-weight: 450; letter-spacing: -.012em; color: var(--soft); }
 
 /* ---------- los datos del problema: tiras de 10 focos ---------- */
-.tiras { position: absolute; left: calc(120 * var(--u)); right: calc(120 * var(--u)); top: calc(292 * var(--u)); padding: calc(20 * var(--u)) calc(52 * var(--u)); border-radius: calc(38 * var(--u)); }
+.tiras { position: absolute; left: calc(120 * var(--u)); right: calc(120 * var(--u)); top: calc(280 * var(--u)); padding: calc(20 * var(--u)) calc(52 * var(--u)); border-radius: calc(38 * var(--u)); }
 .tira { display: grid; grid-template-columns: calc(372 * var(--u)) calc(560 * var(--u)) 1fr; align-items: center; column-gap: calc(36 * var(--u)); padding: calc(36 * var(--u)) 0; opacity: 0; transform: translateY(calc(16 * var(--u))); transition: opacity .3s ease, transform .3s ease; }
 .slide.on .tira { opacity: 1; transform: none; transition: opacity .8s ease calc(.1s + var(--t)), transform 1s cubic-bezier(.16, 1, .3, 1) calc(.1s + var(--t)); }
 .tira .num { font-family: var(--head); font-size: calc(44 * var(--u)); line-height: 1; font-weight: 600; letter-spacing: -.02em; white-space: nowrap; color: var(--soft); }
@@ -107,18 +107,18 @@ h2.medio { font-size: calc(68 * var(--u)); }
 .leds { display: flex; gap: calc(12 * var(--u)); padding: calc(13 * var(--u)) calc(15 * var(--u)); border-radius: calc(18 * var(--u)); background: rgba(3, 8, 28, .46); box-shadow: inset 0 0 0 max(1px, calc(1.5 * var(--u))) rgba(255, 255, 255, .08); }
 .leds i { flex: 1; height: calc(46 * var(--u)); border-radius: calc(9 * var(--u)); background: rgba(255, 255, 255, .1); transition: background .2s, box-shadow .2s; }
 .slide.on .leds i.si { background: #d6eaff; box-shadow: 0 0 calc(20 * var(--u)) rgba(110, 170, 255, .95), 0 0 calc(3 * var(--u)) #fff; transition: background .45s ease calc(.6s + var(--t) + var(--i) * .09s), box-shadow .6s ease calc(.6s + var(--t) + var(--i) * .09s); }
-/* el foco que sigue a los enteros queda a medias: es la fracción de la cifra exacta */
-.slide.on .leds i.parte { background: linear-gradient(90deg, #d6eaff calc(var(--k) * 100%), rgba(255, 255, 255, .1) calc(var(--k) * 100%)); box-shadow: 0 0 calc(12 * var(--u)) rgba(110, 170, 255, .45); }
-.fuente { position: absolute; left: calc(172 * var(--u)); top: calc(884 * var(--u)); font-size: calc(19 * var(--u)); line-height: 1.4; color: var(--soft); opacity: .8; }
+.fuente { position: absolute; left: calc(172 * var(--u)); top: calc(908 * var(--u)); font-size: calc(19 * var(--u)); line-height: 1.4; color: var(--soft); opacity: .8; }
 .slide.on .fuente[data-a] { opacity: .8; }
 
 /* ---------- perfiles más vulnerables: cuatro tarjetas ---------- */
 .perfiles { position: absolute; left: calc(120 * var(--u)); right: calc(120 * var(--u)); top: calc(292 * var(--u)); display: grid; grid-template-columns: repeat(4, 1fr); gap: calc(28 * var(--u)); }
-.perfil { padding: calc(18 * var(--u)) calc(18 * var(--u)) calc(30 * var(--u)); border-radius: calc(36 * var(--u)); }
-.perfil img { display: block; width: 100%; height: calc(400 * var(--u)); object-fit: cover; border-radius: calc(20 * var(--u)); box-shadow: 0 calc(10 * var(--u)) calc(28 * var(--u)) rgba(0, 0, 0, .35); }
-.perfil .tag { margin: calc(26 * var(--u)) calc(10 * var(--u)) 0; font-size: calc(16 * var(--u)); line-height: 1; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; color: var(--accent); }
-.perfil h3 { margin: calc(12 * var(--u)) calc(10 * var(--u)) 0; font-size: calc(42 * var(--u)); line-height: 1.08; letter-spacing: -.025em; }
-.perfil .quien { margin: calc(8 * var(--u)) calc(10 * var(--u)) 0; font-size: calc(23 * var(--u)); line-height: 1.3; color: var(--soft); }
+.perfil { padding: calc(18 * var(--u)) calc(18 * var(--u)) calc(28 * var(--u)); border-radius: calc(36 * var(--u)); }
+.perfil .foto { height: calc(392 * var(--u)); overflow: hidden; border-radius: calc(20 * var(--u)); box-shadow: 0 calc(10 * var(--u)) calc(28 * var(--u)) rgba(0, 0, 0, .35); }
+.perfil img { display: block; width: 100%; height: 100%; object-fit: cover; }
+/* lo que manda es el perfil (estudiantes, mujeres, niños, adultos mayores); la persona es el ejemplo */
+.perfil h3 { margin: calc(24 * var(--u)) calc(10 * var(--u)) 0; font-size: calc(44 * var(--u)); line-height: 1.05; letter-spacing: -.03em; }
+.perfil .nombre { margin: calc(12 * var(--u)) calc(10 * var(--u)) 0; font-size: calc(23 * var(--u)); line-height: 1.2; font-weight: 600; color: var(--accent); }
+.perfil .quien { margin: calc(3 * var(--u)) calc(10 * var(--u)) 0; font-size: calc(20 * var(--u)); line-height: 1.3; color: var(--soft); }
 
 /* ---------- nodos: número y nombre como título, el beneficio como subtítulo ---------- */
 .nodo .col { width: calc(800 * var(--u)); }
@@ -211,7 +211,8 @@ svg.acc { width: 100%; border-bottom: max(1px, calc(1.5 * var(--u))) solid rgba(
 .cotas .testigo { stroke-width: max(1px, calc(1.4 * var(--u))); opacity: 0; transition: opacity .3s ease; }
 .cotas .medida { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset .3s ease; }
 .cotas circle { r: calc(5 * var(--u)); fill: var(--navy); opacity: 0; transition: opacity .3s ease; }
-.cotas text { font-family: var(--head); font-size: calc(31 * var(--u)); font-weight: 600; letter-spacing: -.01em; fill: var(--navy); text-anchor: middle; dominant-baseline: central; paint-order: stroke; stroke: #faf7f2; stroke-width: calc(14 * var(--u)); stroke-linejoin: round; opacity: 0; transition: opacity .3s ease; }
+.cotas text { font-family: var(--head); font-size: calc(31 * var(--u)); font-weight: 600; letter-spacing: -.01em; fill: var(--navy); text-anchor: middle; dominant-baseline: central; opacity: 0; transition: opacity .3s ease; }
+.cotas text.halo { fill: #faf7f2; stroke: #faf7f2; stroke-width: calc(14 * var(--u)); stroke-linejoin: round; }
 .slide.on .cotas .medida { stroke-dashoffset: 0; transition: stroke-dashoffset 1s cubic-bezier(.3, 0, .2, 1) calc(2.9s + var(--i) * .45s); }
 .slide.on .cotas .testigo { opacity: .45; transition: opacity .5s ease calc(2.8s + var(--i) * .45s); }
 .slide.on .cotas circle { opacity: 1; transition: opacity .4s ease calc(2.9s + var(--i) * .45s); }
@@ -233,8 +234,6 @@ svg.acc { width: 100%; border-bottom: max(1px, calc(1.5 * var(--u))) solid rgba(
 .punto b { display: block; font-family: var(--head); font-size: calc(22 * var(--u)); line-height: 1.1; font-weight: 600; letter-spacing: -.01em; }
 
 .punto.solo { padding: calc(7 * var(--u)); }
-.punto.rotulo { height: calc(52 * var(--u)); margin-top: calc(-26 * var(--u)); margin-left: calc(-26 * var(--u)); padding: calc(7 * var(--u)) calc(22 * var(--u)) calc(7 * var(--u)) calc(16 * var(--u)); transform-origin: calc(26 * var(--u)) 50%; }
-.punto.rotulo .n { width: calc(16 * var(--u)); height: calc(16 * var(--u)); background: var(--blue); box-shadow: 0 0 0 calc(5 * var(--u)) rgba(38, 125, 192, .2); }
 
 /* ---------- flujo: la línea de paradas de la landing ---------- */
 .via { position: relative; display: grid; grid-template-columns: repeat(5, 1fr); margin-top: calc(48 * var(--u)); padding: calc(34 * var(--u)) calc(10 * var(--u)) calc(28 * var(--u)); border-radius: calc(30 * var(--u)); }

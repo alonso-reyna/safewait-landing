@@ -22,11 +22,12 @@ const NODOS = [
   { name: 'Ruta', anchor: 'route', title: 'La pantalla te dice qué camión llegó.', sensor: ['Sensor de color', 'TCS3200'], act: ['Pantalla OLED', 'SSD1306'], event: 'Ruta 2 detectada' },
   { name: 'Barrotes', anchor: 'bars', title: 'Con una clave, los barrotes protegen la caseta.', sensor: ['Teclado 4x4', 'Keypad'], act: ['Motor a pasos', '28BYJ-48'], event: 'Barrotes arriba' },
 ];
-// quiénes corren más riesgo al esperar solos (reporte de la Etapa 4: mujeres, adultos mayores, niños y estudiantes)
+// quiénes corren más riesgo al esperar solos (reporte de la Etapa 4: mujeres, adultos mayores, niños y estudiantes).
+// pos y zoom encuadran la cara de cada foto en su tarjeta
 const PERFILES = [
   { tag: 'Estudiantes', name: 'Daniela Torres', quien: '16 años, estudiante de prepa', img: fDaniela, pos: '50% 20%' },
-  { tag: 'Mujeres', name: 'Laura Méndez', quien: '29 años, embarazada', img: fEmbarazada, pos: '50% 8%' },
-  { tag: 'Niños', name: 'Mateo Garza', quien: '11 años, estudiante de primaria', img: fNino, pos: '70% 30%' },
+  { tag: 'Mujeres', name: 'Laura Méndez', quien: '29 años, embarazada', img: fEmbarazada, pos: '52% 16%', zoom: 1.5 },
+  { tag: 'Niños', name: 'Mateo Garza', quien: '11 años, estudiante de primaria', img: fNino, pos: '92% 26%', zoom: 1.12 },
   { tag: 'Adultos mayores', name: 'José Ramírez', quien: '75 años, mecánico retirado', img: fJose, pos: '50% 20%' },
 ];
 // el dashboard del equipo en Data Studio (la slide del dashboard lo abre en otra pestaña)
@@ -87,13 +88,12 @@ document.querySelectorAll('.slide.nodo').forEach(s => {
     <div class="pasos" data-a=".8">${NODOS.map((_, i) => `<i class="${i + 1 < n ? 'hecho' : i + 1 === n ? 'aqui' : ''}"></i>`).join('')}</div>`}
   </div>`;
 });
-// tiras de LED del problema: 10 focos; los enteros encendidos y el que sigue a medias, según la cifra exacta
+// tiras de LED del problema: 10 focos y se encienden los de la cifra redondeada
 document.querySelectorAll('.tira').forEach(t => {
-  const v = +t.dataset.v;
-  t.querySelector('.leds').innerHTML = Array.from({ length: 10 }, (_, i) => { const k = clamp(v - i); return `<i class="${k >= 1 ? 'si' : k > 0 ? 'si parte' : ''}" style="--i:${i};--k:${k.toFixed(2)}"></i>`; }).join('');
+  t.querySelector('.leds').innerHTML = Array.from({ length: 10 }, (_, i) => `<i class="${i < +t.dataset.n ? 'si' : ''}" style="--i:${i}"></i>`).join('');
 });
 $('#perfiles').innerHTML = PERFILES.map((p, i) => `<article class="perfil vidrio" data-a="${(.5 + i * .16).toFixed(2)}">
-  <img src="${p.img}" alt="" style="object-position:${p.pos}"><p class="tag">${p.tag}</p><h3>${p.name}</h3><p class="quien">${p.quien}</p></article>`).join('');
+  <div class="foto"><img src="${p.img}" alt="" style="object-position:${p.pos};transform-origin:${p.pos};scale:${p.zoom || 1}"></div><h3>${p.tag}</h3><p class="nombre">${p.name}</p><p class="quien">${p.quien}</p></article>`).join('');
 // base de datos: un registro por nodo
 $('#filas').innerHTML = NODOS.map((d, i) => `<li style="--i:${i}"><span class="n">${i + 1}</span><span><b>${d.name}</b><span>${d.event}</span></span></li>`).join('');
 // dashboard: tarjetas con el total de cada nodo y una gráfica por nodo, que se van dibujando
@@ -119,14 +119,10 @@ $('#tabla').innerHTML = `<p class="fila cabeza"><span></span><span>Nodo</span><s
   `<p class="fila" style="--i:${i}"><span class="n">${i + 1}</span><b>${d.name}</b><span>${d.sensor[0]}<i>${d.sensor[1]}</i></span><span>${d.act[0]}<i>${d.act[1]}</i></span></p>`).join('');
 $('#puntos').innerHTML = NODOS.map((_, i) => `<span class="punto solo vidrio-c" style="--d:${(.8 + i * .22).toFixed(2)}s"><span class="n">${i + 1}</span></span>`).join('');
 const puntos = [...document.querySelectorAll('#puntos .punto')];
-// piezas impresas en 3D: un rótulo sobre cada grupo de piezas
-const PIEZAS = [['barrotes', 'Barrotes y cremallera'], ['esquinas', 'Esquinas del techo']];
-$('#piezas').innerHTML = PIEZAS.map(([, t], i) => `<span class="punto rotulo vidrio-c" style="--d:${(1.6 + i * .5).toFixed(2)}s"><span class="n"></span><b>${t}</b></span>`).join('');
-const piezas = [...document.querySelectorAll('#piezas .punto')];
 // cotas de la maqueta: línea de medida, sus dos testigos y la cifra
 const cotasEl = $('#cotas');
-cotasEl.innerHTML = COTAS.map((c, i) => `<g style="--i:${i}"><line class="testigo"/><line class="testigo"/><line class="medida" pathLength="1"/><circle r="3"/><circle r="3"/><text>${c.t}</text></g>`).join('');
-const cotas = [...cotasEl.children].map(g => ({ l: [...g.querySelectorAll('line')], c: [...g.querySelectorAll('circle')], t: g.querySelector('text') }));
+cotasEl.innerHTML = COTAS.map((c, i) => `<g style="--i:${i}"><line class="testigo"/><line class="testigo"/><line class="medida" pathLength="1"/><circle r="3"/><circle r="3"/><text class="halo">${c.t}</text><text>${c.t}</text></g>`).join('');
+const cotas = [...cotasEl.children].map(g => ({ l: [...g.querySelectorAll('line')], c: [...g.querySelectorAll('circle')], t: [...g.querySelectorAll('text')] }));
 const COTA_PTS = COTAS.flatMap(c => [c.a, c.b, c.a.map((v, i) => v + c.d[i]), c.b.map((v, i) => v + c.d[i])]);
 $('#equipo').innerHTML = TEAM.map(p => `<li><b>${p.name}</b><span>${p.extra}, ${p.area}</span></li>`).join('') + `<li><b>${TEACHERS}</b><span>Profesoras</span></li>`;
 $('#dashBtn').href = DASHBOARD_URL;
@@ -178,7 +174,7 @@ function draw(t) {
   }
   // el dashboard: los totales cuentan hacia arriba cuando aparecen sus tarjetas
   if (id === 'registro') kpis.forEach((b, i) => { b.textContent = Math.round(+b.dataset.n * (1 - Math.pow(1 - clamp((u - 3.5 - i * .12) / 1.2), 3))); });
-  // rótulos que siguen a la maqueta de madera: cotas, piezas impresas y puntos de los nodos
+  // rótulos que siguen a la maqueta de madera: cotas y puntos de los nodos
   if (!M) return;
   if (id === 'escala') {
     const p = M.proj(COTA_PTS);
@@ -186,11 +182,10 @@ function draw(t) {
       const [a, b, a2, b2] = p.slice(i * 4, i * 4 + 4), set = (l, m, n) => { l.setAttribute('x1', pc(m[0])); l.setAttribute('y1', pc(m[1])); l.setAttribute('x2', pc(n[0])); l.setAttribute('y2', pc(n[1])); };
       set(c.l[0], a, a2); set(c.l[1], b, b2); set(c.l[2], a2, b2);
       [a2, b2].forEach((m, j) => { c.c[j].setAttribute('cx', pc(m[0])); c.c[j].setAttribute('cy', pc(m[1])); });
-      c.t.setAttribute('x', pc((a2[0] + b2[0]) / 2)); c.t.setAttribute('y', pc((a2[1] + b2[1]) / 2));
+      for (const t of c.t) { t.setAttribute('x', pc((a2[0] + b2[0]) / 2)); t.setAttribute('y', pc((a2[1] + b2[1]) / 2)); }
     });
   }
   const sigue = (els, pts) => pts.forEach(([x, y], i) => { els[i].style.left = pc(x); els[i].style.top = pc(y); });
-  if (id === 'impresas') sigue(piezas, M.proj(PIEZAS.map(z => z[0])));
   if (id === 'distribucion') sigue(puntos, M.project(NODOS.map(d => d.anchor)));
 }
 function tick(ms) {

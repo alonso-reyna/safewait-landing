@@ -27,7 +27,7 @@
       </div>
     </section>
 
-    <!-- la situación: quien presenta la cuenta mientras la estudiante camina a la parada, la seguridad baja a cero y el camión no llega.
+    <!-- la situación: quien presenta la cuenta mientras la estudiante camina a la parada, la seguridad baja a cero y ella sigue esperando.
          Los tiempos (data-a, --t0) siguen el guion de chica.js; los escalones del medidor están en pitch.js -->
     <section class="slide" data-id="situacion" data-part="pitch" data-shot="24">
       <div class="col relato">
@@ -43,20 +43,20 @@
               <ul class="med-por"><li data-a="8.9">No hay luz</li><li data-a="10.3">No hay nadie</li><li data-a="11.7">No sabes cuándo llega</li></ul>
             </div>
           </li>
-          <li data-a="14"><time>10:45 p.m.</time><b>El camión todavía no llega</b></li>
+          <li data-a="14"><time>10:45 p.m.</time><b>Sigues esperando</b></li>
         </ol>
       </div>
     </section>
 
-    <!-- los datos: tres tiras de 10 focos, encendidos en la proporción exacta de cada cifra (data-v) -->
+    <!-- los datos: tres tiras de 10 focos, encendidos según la cifra redondeada (data-n); la cifra exacta va en la fuente -->
     <section class="slide brillo" data-id="cifras" data-part="pitch" data-shot="9">
       <h2 class="medio tope" data-lines>El riesgo en datos</h2>
       <div class="tiras vidrio" data-a=".4">
-        <div class="tira" style="--t:.9s" data-v="6.11"><p class="num"><b>6</b> de cada 10</p><p class="txt">adultos se sienten inseguros en el transporte público.</p><div class="leds"></div></div>
-        <div class="tira" style="--t:2.1s" data-v="5.59"><p class="num"><b>5</b> de cada 10</p><p class="txt">dicen que el alumbrado de su ciudad no alcanza.</p><div class="leds"></div></div>
-        <div class="tira" style="--t:3.3s" data-v="4.47"><p class="num"><b>4</b> de cada 10</p><p class="txt">dejaron de salir de noche por miedo.</p><div class="leds"></div></div>
+        <div class="tira" style="--t:.9s" data-n="7"><p class="num"><b>7</b> de cada 10</p><p class="txt">mujeres se sienten inseguras en el transporte público.</p><div class="leds"></div></div>
+        <div class="tira" style="--t:2.1s" data-n="6"><p class="num"><b>6</b> de cada 10</p><p class="txt">personas dicen que el alumbrado de su ciudad no alcanza.</p><div class="leds"></div></div>
+        <div class="tira" style="--t:3.3s" data-n="4"><p class="num"><b>4</b> de cada 10</p><p class="txt">adultos dejaron de salir de noche por miedo.</p><div class="leds"></div></div>
       </div>
-      <p class="fuente" data-a="1.2">Fuente: INEGI. ENSU, septiembre de 2026 (61.1 % y 55.9 %) y ENVIPE 2026, sobre 2025 (44.7 %).</p>
+      <p class="fuente" data-a="1.2">Fuente: INEGI. ENSU, septiembre de 2026 (66.6 % y 55.9 %) y ENVIPE 2026, sobre 2025 (44.7 %).</p>
     </section>
 
     <section class="slide brillo" data-id="personas" data-part="pitch" data-shot="8">
@@ -120,7 +120,6 @@
         <h2 data-lines>Piezas impresas|en 3D</h2>
         <p class="lede" data-a=".8">En PLA.</p>
       </div>
-      <div class="puntos" id="piezas"></div>
     </section>
 
     <section class="slide" data-id="oculto" data-look="madera" data-part="maqueta" data-shot="6">
@@ -138,12 +137,12 @@
       <div class="puntos" id="puntos"></div>
     </section>
 
-    <!-- cada integrante presenta su nodo: la misma animación del pitch y el camino del sensor al actuador -->
-    <section class="slide nodo demo" data-id="m-luz" data-pose="luz" data-node="1" data-part="maqueta" data-shot="7"></section>
+    <!-- cada integrante presenta su nodo: la animación del pitch, repitiéndose de fondo, y el camino del sensor al actuador -->
+    <section class="slide nodo demo" data-id="m-luz" data-pose="d-luz" data-node="1" data-part="maqueta" data-shot="7"></section>
     <section class="slide nodo demo" data-id="m-sos" data-pose="sos" data-node="2" data-part="maqueta" data-shot="2.55"></section>
     <section class="slide nodo demo" data-id="m-acceso" data-pose="acceso" data-node="3" data-part="maqueta" data-shot="3.9"></section>
-    <section class="slide nodo demo" data-id="m-ruta" data-pose="ruta" data-node="4" data-part="maqueta" data-shot="8.6"></section>
-    <section class="slide nodo demo" data-id="m-barrotes" data-pose="barrotes" data-node="5" data-part="maqueta" data-shot="10"></section>
+    <section class="slide nodo demo" data-id="m-ruta" data-pose="d-ruta" data-node="4" data-part="maqueta" data-shot="8.6"></section>
+    <section class="slide nodo demo" data-id="m-barrotes" data-pose="d-barrotes" data-node="5" data-part="maqueta" data-shot="10"></section>
 
     <section class="slide" data-id="flujo" data-part="maqueta" data-shot="8">
       <div class="col">

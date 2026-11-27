@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { ANCHORS, CAD } from '../src/scene.js';
 import { paradaFea, farol } from './parada.js';
 import { G, girlAt } from './chica.js';
+import { nodemcu } from './nodemcu.js';
 import { KEYPAD_TOP } from '../src/detail.js';
 import { CODE } from '../video/guion.js';
 
@@ -15,6 +16,7 @@ const expo = t => t >= 1 ? 1 : 1 - Math.pow(2, -10 * t);
 const ramp = (t, a, b) => clamp((t - a) / (b - a));
 const sm = (t, a, b) => smooth(ramp(t, a, b));
 const hold = (t, a, b, c, d) => sm(t, a, b) * (1 - sm(t, c, d));
+const ciclo = (t, T) => ((t % T) + T) % T;   // el segundo dentro de un ciclo que se repite cada T
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const UP = V(0, 1, 0);
 
@@ -24,8 +26,8 @@ const TRAVEL = 1.7;                   // lo que dura el viaje entre dos slides
 const EX_0 = .8;                      // qué tan separada aparece la maqueta antes de armarse (1 = vista explotada completa)
 
 // valores que se mezclan al cambiar de slide
-const NUM = ['night', 'lamp', 'door', 'bars', 'oled', 'lift', 'explode', 'xray', 'hlSos', 'hlDoor', 'hlBars', 'sway', 'velo', 'out', 'feo', 'ex', 'vis'];
-const BASE = { cam: 'lado', cam2: null, camK: 0, ang: 0, zoom: 1, night: 0, lamp: 0, door: 0, bars: 0, oled: 0, lift: 0, explode: 0, xray: 0, hlSos: 0, hlDoor: 0, hlBars: 0, sway: .05, velo: 0, out: 0, feo: 0, ex: 0, vis: 1, girlT: null, busT: null, sosT: null, keysT: null };
+const NUM = ['night', 'lamp', 'door', 'bars', 'oled', 'lift', 'explode', 'xray', 'hlSos', 'hlDoor', 'hlBars', 'sway', 'velo', 'out', 'feo', 'ex', 'vis', 'foco', 'mcu'];
+const BASE = { cam: 'lado', cam2: null, camK: 0, ang: 0, zoom: 1, night: 0, lamp: 0, door: 0, bars: 0, oled: 0, lift: 0, explode: 0, xray: 0, hlSos: 0, hlDoor: 0, hlBars: 0, sway: .05, velo: 0, out: 0, feo: 0, ex: 0, vis: 1, foco: 0, mcu: 0, busOut: 0, girlT: null, busT: null, sosT: null, keysT: null };
 
 // una pose por slide (t = segundos desde que entró la slide)
 const POSES = {
@@ -51,12 +53,19 @@ const POSES = {
   // la maqueta de madera: la cámara parte del encuadre azul (así el cambio de material no brinca) y se aleja para que quepa la base
   escala: t => ({ cam: 'lado', cam2: 'ladoB', camK: sm(t, .2, 2.4), ang: -.12 * sm(t, .2, 2.4) }),
   mdf: () => ({ cam: 'abiertoB', explode: 1, sway: .04 }),
-  // las piezas impresas: sigue separada, la cámara se acerca y los barrotes suben y bajan
-  impresas: t => ({ cam: 'impresas', explode: 1, sway: .03, bars: hold((((t - 2.2) % 7) + 7) % 7, 0, 2.2, 3.6, 5.8) * sm(t, 2.2, 2.4) }),
-  oculto: () => ({ cam: 'ladoB', xray: 1, ang: .16, sway: .04 }),
+  // las piezas impresas: sigue separada, la cámara se acerca, todo lo demás se desenfoca y pierde el color (foco),
+  // y los barrotes suben y bajan
+  impresas: t => ({ cam: 'impresas', explode: 1, sway: .03, foco: 1, bars: hold(ciclo(t - 2.2, 7), 0, 2.2, 3.6, 5.8) * sm(t, 2.2, 2.4) }),
+  // la base se vuelve translúcida y cinco NodeMCU orbitan la maqueta (mcu)
+  oculto: () => ({ cam: 'ladoB', zoom: 1.2, xray: 1, ang: .16, sway: .04, mcu: 1 }),
   distribucion: () => ({ cam: 'altoB', lift: 1, sway: .03 }),
   flujo: () => ({ ang: .2 }),
   dashboard: () => ({ ang: .08 }),
+  // en la parte de maqueta cada nodo es el fondo de quien lo presenta: su animación se repite hasta que cambie la slide
+  // (SOS y Acceso ya se repiten solos)
+  'd-luz': t => { const p = ciclo(t, 10.2); return { cam: 'light', lift: 1, night: hold(p, 1.7, 3.2, 7.6, 9.3), lamp: hold(p, 2.8, 4.4, 7.2, 8.7) }; },
+  'd-ruta': t => { const p = ciclo(t, 14.6), k = hold(p, 5.2, 6.5, 9.8, 11.1); return { cam: 'route', cam2: 'oled', camK: k, velo: k, lift: 1, busT: p - .9, busOut: ramp(p, 11.5, 14), oled: hold(p, 4.5, 4.9, 11.2, 11.6) }; },
+  'd-barrotes': t => { const p = ciclo(t, 13.6), k = hold(p, 1.0, 2.5, 5.3, 6.9); return { cam: 'bars', cam2: 'keypad', camK: k, velo: k, hlBars: sm(t, .6, 1.6), keysT: p - 2.9, bars: hold(p, 6.1, 8.3, 10.4, 12.7) }; },
   gracias: () => ({ cam: 'chico' }),
 };
 
@@ -123,11 +132,23 @@ export function setupPitch(c) {
   let cur = 'portada', t0 = 0, dur = 0, from = null, W0 = 1920, H0 = 1080;
 
   /* ---------- la slide de la situación: la estudiante (chica.js) en la parada de hoy (parada.js) ---------- */
-  let girl = null, fea = null, feoOn = false, ocultos = null;
+  let girl = null, fea = null, feoOn = false, ocultos = null, soloImp = false;
   const caseta = [];
+  // piezas impresas en 3D (barrotes con su cremallera, esquinas del techo y polea) y todo lo que no lo es
+  const IMPRESA = new Set(['corner', 'hl_bars_bars', 'pulley']), noImp = [];
+  { const es = o => { for (let q = o; q; q = q.parent) if (q.userData && IMPRESA.has(q.userData.cls)) return true; return false; };
+    stage.root.traverse(o => { if ((o.isMesh || o.isLine) && !es(o)) noImp.push(o); }); }
+  // su copia nítida va en un lienzo aparte, encima del de la escena (que se desenfoca)
+  const fc = document.createElement('canvas'), fg = fc.getContext('2d');
+  fc.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;pointer-events:none;opacity:0';
+  el.gl.after(fc);
+  // cinco NodeMCU en órbita alrededor de la base (slide "Bajo la plataforma")
+  const orbita = new THREE.Group(); orbita.visible = false; stage.root.add(orbita);
+  const placas = [0, 1, 2, 3, 4].map(() => { const o = nodemcu(); o.scale.setScalar(3.1); orbita.add(o); return o; });
+  for (const o of placas) o.traverse(q => { if (q.isMesh) noImp.push(q); });
   { // la caseta se esconde justo al dibujar y se restaura al terminar, para no pelear con lo que la escena decide en cada cuadro
     const antes = stage.scene.onBeforeRender, despues = stage.scene.onAfterRender;
-    stage.scene.onBeforeRender = function () { antes.apply(this, arguments); if (feoOn) { for (const o of caseta) { o.userData.vis = o.visible; o.visible = false; } ocultos = caseta; } };
+    stage.scene.onBeforeRender = function () { antes.apply(this, arguments); const lista = soloImp ? noImp : feoOn ? caseta : null; if (lista) { for (const o of lista) { o.userData.vis = o.visible; o.visible = false; } ocultos = lista; } };
     stage.scene.onAfterRender = function () { if (despues) despues.apply(this, arguments); if (ocultos) { for (const o of ocultos) o.visible = o.userData.vis; ocultos = null; } };
   }
   const listo = CON_BASE ? Promise.resolve() : import('../video/personas.js').then(async m => {
@@ -175,7 +196,7 @@ export function setupPitch(c) {
     Object.assign(P, cam);
     P.girl = g || (from && e < 1 ? from.girl : null);
     // camión: llega con su slide; al salir de ella no se desvanece, se va rodando hacia la izquierda
-    if (to.busT != null) P.busX = busIn(to.busT);
+    if (to.busT != null) P.busX = to.busOut > 0 ? (to.busOut < 1 ? BUS.stop + (BUS.b - BUS.stop) * Math.pow(to.busOut, 2.2) : null) : busIn(to.busT);   // busOut: se va rodando sin cambiar de slide
     else if (from && from.busX != null) { const b = ramp(tau, 0, 2.6); P.busX = b < 1 ? from.busX + (BUS.b - from.busX) * Math.pow(b, 2.2) : null; }
     // un pulso del SOS que ya salió termina aunque se cambie de slide
     if (P.sosT == null && from && from.sosT != null) P.sosT = from.sosT + tau;
@@ -286,7 +307,7 @@ export function setupPitch(c) {
     if (fea) {
       fea.g.visible = feoOn;
       fea.quiebra(P.girl ? P.girl.quiebre : 1);
-      const k = feoOn && cur === 'situacion' ? farol(now - t0 + 8.7 - (G.t1 + 1.4)) : 0;   // se apaga poco después de que ella llega
+      const k = feoOn && cur === 'situacion' ? farol(now - t0, G.sienta - .2) : 0;   // a oscuras mientras camina; titila cuando se sienta y se apaga
       fea.luzF.intensity = k * 280; fea.foco.material.emissiveIntensity = k * 2.4;
     }
     // en las slides de datos y personas la escena de la calle no se va de lado: se desvanece
@@ -299,7 +320,24 @@ export function setupPitch(c) {
     cam.aspect = W / H;
     cam.setViewOffset(W, H, P.vo[0] - P.out * W * .66, P.vo[1], W, H);   // out: la maqueta sale de cuadro por la derecha
     cam.position.copy(sw); cam.lookAt(P.tgt); cam.updateMatrixWorld();
+    // NodeMCU: una órbita inclinada alrededor de la base; cada placa gira despacio sobre sí misma
+    orbita.visible = P.mcu > .01;
+    if (orbita.visible) placas.forEach((o, i) => {
+      const a = i * Math.PI * .4 + (fijo ? .5 : now * .32), k = smooth(clamp(P.mcu * 1.6 - i * .15));
+      o.position.set(Math.sin(a) * 43 * k, 9 + 5 * Math.cos(a) + 1.2 * Math.sin(now * 1.1 + i * 2) + 26 * (1 - k), -7.7 + Math.cos(a) * 35 * k);
+      o.rotation.set(.5 + .2 * Math.sin(now * .7 + i), a * 1.5 + i, .25 * Math.cos(now * .5 + i * 1.7)); o.scale.setScalar(3.1 * k + .001);
+    });
+    // foco: primero solo las piezas impresas, que se copian nítidas a su lienzo; luego la escena completa, que se desenfoca
+    const foco = P.foco > .01;
+    if (foco) {
+      soloImp = true; stage.render(now, 0); soloImp = false;
+      if (fc.width !== el.gl.width || fc.height !== el.gl.height) { fc.width = el.gl.width; fc.height = el.gl.height; }
+      fg.clearRect(0, 0, fc.width, fc.height); fg.drawImage(el.gl, 0, 0);
+    }
     stage.render(now, 0);
+    el.gl.style.filter = foco ? `blur(${(W / 1920 * 6.5 * P.foco).toFixed(2)}px) grayscale(${P.foco.toFixed(3)})` : '';
+    fc.style.opacity = foco ? P.foco.toFixed(3) : '0';
+    fc.style.filter = foco ? `drop-shadow(0 0 ${(W / 1920 * 14).toFixed(1)}px rgba(38, 125, 192, ${(.5 * P.foco).toFixed(3)}))` : '';
 
     // fondo: de día claro; de noche oscuro, con el resplandor de la caseta
     el.night.style.opacity = P.night.toFixed(3);
@@ -329,16 +367,8 @@ export function setupPitch(c) {
     return keys.map(k => { const p = tmp.copy(ANCHORS[k]).project(view.camera); return [p.x * .5 + .5, -p.y * .5 + .5]; });
   }
 
-  // puntos sueltos [x, y, z] (cm de la maqueta) o piezas por nombre, a fracciones de pantalla: para cotas y rótulos
-  const caja = new THREE.Box3(), cj = new THREE.Box3();
-  const GRUPOS = { barrotes: () => stage.bars, esquinas: () => stage.meshes.filter(m => m.userData.cls === 'corner') };
-  function proj(pts) {
-    return pts.map(q => {
-      if (typeof q === 'string') { caja.makeEmpty(); for (const o of GRUPOS[q]()) caja.union(cj.setFromObject(o)); caja.getCenter(tmp); }
-      else stage.root.localToWorld(tmp.set(q[0], q[1], q[2]));
-      tmp.project(view.camera); return [tmp.x * .5 + .5, -tmp.y * .5 + .5];
-    });
-  }
+  // puntos [x, y, z] (cm de la maqueta) a fracciones de pantalla: para las cotas
+  const proj = pts => pts.map(q => { stage.root.localToWorld(tmp.set(q[0], q[1], q[2])).project(view.camera); return [tmp.x * .5 + .5, -tmp.y * .5 + .5]; });
 
   window.pitch = { go, render, project, proj, listo, entrada: now => { ent = now; }, armada: () => { ent = YA; }, reset: () => { ent = null; } };
 }
