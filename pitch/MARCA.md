@@ -13,7 +13,7 @@ Guía corta para que cada slide del deck (`pitch/`) suene y se vea igual. Úsala
 7. Los títulos que son un nombre no llevan punto final; las frases completas sí. Las ideas se separan con comas, puntos, dos puntos o paréntesis.
 8. El dashboard se nombra "Data Studio".
 
-Frases fijas: "Esperar ya no es un riesgo." (lema) y "Un paradero inteligente, seguro y funcional." (producto).
+Frases fijas: "Esperar ya no es un riesgo." (lema), "Un paradero inteligente, seguro y funcional." (producto) y "Creamos SafeWait para que esperar un camión sea seguro para todos." (propósito).
 
 ## Imagen
 

@@ -43,6 +43,9 @@ const POSES = {
   personas: () => ({ night: 1, out: 1, ang: -.1, feo: 1 }),
   // SafeWait se presenta: amanece sin nada en pantalla y la maqueta aparece separada por capas y se arma (vis, ex)
   solucion: t => ({ night: 1 - sm(t, 0, 1.3), vis: sm(t, 1.2, 1.9), ex: EX_0 * (1 - sm(t, 1.9, 4.4)), ang: .18 * (1 - sm(t, 1.2, 5.5)) }),
+  // el equipo se presenta con la maqueta al centro; luego baja para dejarle arriba el lugar a la frase
+  equipo: () => ({ cam: 'centro', ang: .1 }),
+  creamos: () => ({ cam: 'abajo', ang: -.05 }),
   luz: t => ({ cam: 'light', lift: 1, night: sm(t, 1.7, 3.2), lamp: sm(t, 2.8, 4.4) }),
   // de noche, para que se vea la tira LED alternando rojo y azul con cada alerta (como en la landing)
   sos: t => ({ cam: 'sos', lift: 1, hlSos: sm(t, .8, 1.8), sosT: t, night: .86 * sm(t, .2, 1.5) }),
@@ -108,6 +111,8 @@ export function setupPitch(c) {
     return {
       lado: c.fit({ cx: W * .7, cy: H * .52, w: W * .56, h: H * .72 }, W, H),
       chico: c.fit({ cx: W * .74, cy: H * .46, w: W * .46, h: H * .6 }, W, H),
+      centro: c.fit({ cx: W * .5, cy: H * .4, w: W * .5, h: H * .54 }, W, H),
+      abajo: c.fit({ cx: W * .5, cy: H * .67, w: W * .44, h: H * .48 }, W, H),
       // con su base (madera) la maqueta es más alta: se encuadra más chica y más arriba para que quepa el pedestal.
       // Los dos iframes calculan los mismos encuadres, así al cambiar de look la cámara coincide en ambos
       ladoB: c.fit({ cx: W * .7, cy: H * .39, w: W * .44, h: H * .54 }, W, H),

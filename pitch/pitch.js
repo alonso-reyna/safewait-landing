@@ -129,6 +129,8 @@ const cotasEl = $('#cotas');
 cotasEl.innerHTML = COTAS.map((c, i) => `<g style="--i:${i}"><line class="testigo"/><line class="testigo"/><line class="medida" pathLength="1"/><circle r="3"/><circle r="3"/><text class="halo">${c.t}</text><text>${c.t}</text></g>`).join('');
 const cotas = [...cotasEl.children].map(g => ({ l: [...g.querySelectorAll('line')], c: [...g.querySelectorAll('circle')], t: [...g.querySelectorAll('text')] }));
 const COTA_PTS = COTAS.flatMap(c => [c.a, c.b, c.a.map((v, i) => v + c.d[i]), c.b.map((v, i) => v + c.d[i])]);
+// el equipo se presenta: una marca de color, el nombre y su rol, sin recuadros
+$('#quienes').innerHTML = TEAM.map((p, i) => `<li style="--i:${i}"><i></i><b>${p.name}</b><span>${p.extra}</span></li>`).join('');
 $('#equipo').innerHTML = TEAM.map(p => `<li><b>${p.name}</b><span>${p.extra}, ${p.area}</span></li>`).join('') + `<li><b>${TEACHERS}</b><span>Profesoras</span></li>`;
 $('#dashBtn').href = DASHBOARD_URL;
 
@@ -232,7 +234,7 @@ function show(i, instant = false) {
   if (!(part in inicio) && (part !== 'pitch' || i > 0)) inicio[part] = now();
   partes.forEach(p => p.classList.toggle('aqui', p.dataset.part === part));
   const inmersa = 'inmersa' in s.dataset;   // slides sin marca ni pie, para que nada distraiga de la escena
-  deck.classList.toggle('sin-marca', inmersa || s.dataset.id === 'portada' || s.dataset.id === 'solucion' || s.dataset.id === 'gracias');
+  deck.classList.toggle('sin-marca', inmersa || ['portada', 'solucion', 'creamos', 'gracias'].includes(s.dataset.id));   // donde ya sale el logo grande
   deck.classList.toggle('sin-pie', i === 0 && SOLO_LOGO);
   deck.classList.toggle('inmersa', inmersa);
   $('#cuenta').textContent = String(i + 1).padStart(2, '0') + ' / ' + slides.length;
